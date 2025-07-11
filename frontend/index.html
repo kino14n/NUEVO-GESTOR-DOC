@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Buscador de Documentos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/custom.css">
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col">
+  <header class="bg-blue-600 text-white px-6 py-4 shadow flex items-center gap-4">
+    <img src="img/logo.png" alt="Logo" class="h-10">
+    <h1 class="text-2xl font-bold">Gestor Documental</h1>
+  </header>
+  <main class="flex-1 container mx-auto p-4">
+    <section class="mb-6">
+      <div class="flex gap-2 items-center">
+        <input id="searchBox" class="w-full px-4 py-2 border rounded focus:outline-none" type="text" placeholder="Buscar documentos...">
+        <button onclick="buscar()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">Buscar</button>
+        <button onclick="abrirModalAgregar()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Nuevo</button>
+      </div>
+      <ul id="suggestions" class="absolute bg-white border rounded mt-1 z-10 hidden"></ul>
+    </section>
+    <section>
+      <table class="min-w-full bg-white rounded shadow">
+        <thead>
+          <tr class="bg-blue-100">
+            <th class="px-4 py-2 text-left">Código</th>
+            <th class="px-4 py-2 text-left">Nombre</th>
+            <th class="px-4 py-2 text-left">Descripción</th>
+            <th class="px-4 py-2 text-left">Fecha</th>
+            <th class="px-4 py-2 text-left">PDF</th>
+            <th class="px-4 py-2 text-left">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="resultados"></tbody>
+      </table>
+    </section>
+  </main>
+  <div id="modal" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 hidden">
+    <form id="formDoc" class="bg-white p-8 rounded shadow-lg w-96 relative" onsubmit="guardarDoc(event)">
+      <h2 class="text-xl mb-4 font-bold" id="modalTitle">Agregar Documento</h2>
+      <input type="hidden" id="docId">
+      <div class="mb-3">
+        <label class="block font-semibold">Código</label>
+        <input required id="codigo" class="w-full px-3 py-2 border rounded" type="text">
+      </div>
+      <div class="mb-3">
+        <label class="block font-semibold">Nombre</label>
+        <input required id="nombre" class="w-full px-3 py-2 border rounded" type="text">
+      </div>
+      <div class="mb-3">
+        <label class="block font-semibold">Descripción</label>
+        <input id="descripcion" class="w-full px-3 py-2 border rounded" type="text">
+      </div>
+      <div class="mb-3">
+        <label class="block font-semibold">Fecha</label>
+        <input id="fecha" class="w-full px-3 py-2 border rounded" type="date">
+      </div>
+      <div class="mb-3">
+        <label class="block font-semibold">Archivo PDF</label>
+        <input id="pdf" class="w-full px-3 py-2 border rounded" type="file" accept="application/pdf">
+        <span id="archivoActual" class="text-xs text-gray-500"></span>
+      </div>
+      <div class="flex gap-2 justify-end mt-4">
+        <button type="button" onclick="cerrarModal()" class="px-4 py-2 bg-gray-300 rounded">Cancelar</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">Guardar</button>
+      </div>
+    </form>
+  </div>
+  <div id="toast" class="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>
