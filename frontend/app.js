@@ -38,9 +38,9 @@ function showModal({title = '', message = '', okText = 'Aceptar', cancelText = '
 }
 
 // =================== BUSCAR ===================
-document.getElementById('buscar-form').addEventListener('submit', function(e) {
-  e.preventDefault();
+document.getElementById('buscar-btn').addEventListener('click', () => {
   const input = document.getElementById('buscar-input').value.trim();
+  if (!input) return alert('Ingresa texto para buscar');
   const resultadoDiv = document.getElementById('buscar-resultado');
   resultadoDiv.textContent = "Buscando: " + input + " ...";
 
@@ -64,6 +64,12 @@ document.getElementById('buscar-form').addEventListener('submit', function(e) {
       resultadoDiv.innerHTML = "<span style='color:red'>Error al buscar.</span>";
       console.error(err);
     });
+});
+
+// =================== LIMPIAR ===================
+document.getElementById('limpiar-btn').addEventListener('click', () => {
+  document.getElementById('buscar-input').value = '';
+  document.getElementById('buscar-resultado').innerHTML = '';
 });
 
 // =================== SUBIR ===================
@@ -125,41 +131,43 @@ function renderDocs(docs) {
     lista.innerHTML = "<span>No hay documentos.</span>";
     return;
   }
-  let html = '<table><tr><th>Nombre</th><th>Acciones</th></tr>';
+  let html = '<table class="w-full text-left border-collapse">';
+  html +=
+    '<thead><tr class="border-b border-gray-300 bg-gray-50"><th class="p-2">Nombre</th><th class="p-2">Acciones</th></tr></thead><tbody>';
   docs.forEach(doc => {
-    html += `<tr>
-      <td>${doc.nombre}</td>
-      <td>
-        <button onclick="eliminarDoc(${doc.id})">Eliminar</button>
-        <button onclick="editarDoc(${doc.id}, '${doc.nombre}')">Editar</button>
-        <a href="https://nuevo-gestor-doc.onrender.com/uploads/${doc.ruta}" target="_blank">Ver PDF</a>
+    html += `<tr class="border-b border-gray-200 hover:bg-gray-100">
+      <td class="p-2">${doc.nombre}</td>
+      <td class="p-2">
+        <button class="mr-2 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700" onclick="eliminarDoc(${doc.id})">Eliminar</button>
+        <button class="mr-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700" onclick="editarDoc(${doc.id}, '${doc.nombre}')">Editar</button>
+        <a href="https://nuevo-gestor-doc.onrender.com/uploads/${doc.ruta}" target="_blank" class="text-blue-600 underline">Ver PDF</a>
       </td>
     </tr>`;
   });
-  html += '</table>';
+  html += '</tbody></table>';
   lista.innerHTML = html;
 }
 
-function consultarDocs(filtro = "") {
+function consultarDocs(filtro = '') {
   fetch('https://nuevo-gestor-doc.onrender.com/api/docs' + (filtro ? '?search=' + encodeURIComponent(filtro) : ''))
     .then(res => res.json())
     .then(renderDocs)
     .catch(err => {
-      document.getElementById('consultar-lista').innerHTML = "Error al cargar documentos.";
+      document.getElementById('consultar-lista').innerHTML = 'Error al cargar documentos.';
       console.error(err);
     });
 }
 
-document.getElementById('consultar-busqueda').addEventListener('input', function() {
+document.getElementById('consultar-busqueda').addEventListener('input', function () {
   consultarDocs(this.value);
 });
 
-document.querySelector('.tab-btn[data-tab="consultar"]').addEventListener('click', function() {
+document.querySelector('.tab-btn[data-tab="consultar"]').addEventListener('click', function () {
   consultarDocs();
 });
 
 // ========== Eliminar documento ==========
-window.eliminarDoc = function(id) {
+window.eliminarDoc = function (id) {
   showModal({
     title: 'Confirmar eliminación',
     message: '¿Estás seguro que deseas eliminar este documento?',
@@ -179,7 +187,7 @@ window.eliminarDoc = function(id) {
           } else {
             showModal({
               title: 'Error',
-              message: data.error || "Error al eliminar.",
+              message: data.error || 'Error al eliminar.',
               hideCancel: true
             });
           }
@@ -194,10 +202,10 @@ window.eliminarDoc = function(id) {
         });
     }
   });
-}
+};
 
 // ========== Editar documento ==========
-window.editarDoc = function(id, nombreActual) {
+window.editarDoc = function (id, nombreActual) {
   const nuevoNombre = prompt('Nuevo nombre:', nombreActual);
   if (!nuevoNombre || nuevoNombre === nombreActual) return;
   fetch(`https://nuevo-gestor-doc.onrender.com/api/docs/${id}`, {
@@ -217,7 +225,7 @@ window.editarDoc = function(id, nombreActual) {
       } else {
         showModal({
           title: 'Error',
-          message: data.error || "Error al editar.",
+          message: data.error || 'Error al editar.',
           hideCancel: true
         });
       }
@@ -225,38 +233,38 @@ window.editarDoc = function(id, nombreActual) {
     .catch(err => {
       showModal({
         title: 'Error',
-        message: "Error al editar.",
+        message: 'Error al editar.',
         hideCancel: true
       });
       console.error(err);
     });
-}
+};
 
 // ========== Descargar CSV y ZIP ==========
-document.getElementById('descargar-csv').addEventListener('click', function() {
+document.getElementById('descargar-csv').addEventListener('click', function () {
   window.open('https://nuevo-gestor-doc.onrender.com/api/download_csv');
 });
-document.getElementById('descargar-pdfs').addEventListener('click', function() {
+document.getElementById('descargar-pdfs').addEventListener('click', function () {
   window.open('https://nuevo-gestor-doc.onrender.com/api/download_zip');
 });
 
 // =================== BÚSQUEDA POR CÓDIGO ===================
-document.getElementById('codigo-form').addEventListener('submit', function(e) {
+document.getElementById('codigo-form').addEventListener('submit', function (e) {
   e.preventDefault();
   const codigo = document.getElementById('codigo-input').value.trim();
   const resultado = document.getElementById('codigo-resultado');
-  resultado.textContent = "Buscando código: " + codigo + " ...";
+  resultado.textContent = 'Buscando código: ' + codigo + ' ...';
 
   fetch('https://nuevo-gestor-doc.onrender.com/api/search_code', {
     method: 'POST',
-    headers: { "Content-Type": "application/json" },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code: codigo })
   })
     .then(res => res.json())
     .then(data => {
       resultado.innerHTML = '';
       if (Object.keys(data).length === 0) {
-        resultado.innerHTML = "<span>No se encontró el código.</span>";
+        resultado.innerHTML = '<span>No se encontró el código.</span>';
       } else {
         for (const [doc, info] of Object.entries(data)) {
           resultado.innerHTML += `<div><b>${doc}</b>: ${JSON.stringify(info)}</div>`;
@@ -269,7 +277,7 @@ document.getElementById('codigo-form').addEventListener('submit', function(e) {
     });
 });
 
-document.getElementById('codigo-input').addEventListener('input', function() {
+document.getElementById('codigo-input').addEventListener('input', function () {
   const val = this.value.trim();
   const sugerencias = document.getElementById('codigo-sugerencias');
   sugerencias.innerHTML = '';
@@ -293,4 +301,4 @@ document.getElementById('codigo-input').addEventListener('input', function() {
     });
 });
 
-console.log("Gestor documental JS conectado y funcional.");
+console.log('Gestor documental JS conectado y funcional.');

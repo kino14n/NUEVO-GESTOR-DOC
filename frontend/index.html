@@ -1,63 +1,129 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Gestor Documental Python</title>
-  <!-- Tailwind CDN -->
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="css/custom.css">
+  <link rel="stylesheet" href="css/custom.css" />
 </head>
-<body class="bg-gray-100">
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
 
-  <div class="container">
-    <img src="img/logo.png" alt="Logo" class="logo">
+  <div class="bg-white rounded-xl shadow-lg max-w-3xl w-full p-6">
+    <h1 class="text-center text-2xl font-bold mb-6 text-blue-700">KINO COMPANY SAS V1</h1>
 
     <!-- Tabs -->
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="buscar">Buscar</button>
-      <button class="tab-btn" data-tab="subir">Subir</button>
-      <button class="tab-btn" data-tab="consultar">Consultar</button>
-      <button class="tab-btn" data-tab="codigo">Búsqueda por Código</button>
+    <div class="flex justify-around border-b border-gray-200 mb-6">
+      <button class="tab-btn py-2 px-4 text-blue-600 border-b-2 border-blue-600 font-semibold" data-tab="buscar">Buscar</button>
+      <button class="tab-btn py-2 px-4 text-gray-500 hover:text-blue-600" data-tab="subir">Subir</button>
+      <button class="tab-btn py-2 px-4 text-gray-500 hover:text-blue-600" data-tab="consultar">Consultar</button>
+      <button class="tab-btn py-2 px-4 text-gray-500 hover:text-blue-600" data-tab="codigo">Búsqueda por Código</button>
     </div>
 
-    <!-- Paneles de pestañas -->
+    <!-- Buscar -->
     <div id="tab-buscar" class="tab-panel">
-      <h2>Buscar Documentos</h2>
-      <form id="buscar-form">
-        <input type="text" id="buscar-input" placeholder="Buscar por texto, código o palabra clave..." required>
-        <button type="submit">Buscar</button>
-      </form>
-      <div id="buscar-resultado"></div>
+      <h2 class="text-xl font-semibold mb-3 text-blue-700">Búsqueda Inteligente</h2>
+      <textarea
+        id="buscar-input"
+        rows="6"
+        placeholder="Pega aquí tus códigos o bloque de texto..."
+        class="w-full p-4 border border-blue-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+      ></textarea>
+      <div class="mt-4 flex gap-4">
+        <button
+          id="buscar-btn"
+          class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg"
+        >
+          Buscar
+        </button>
+        <button
+          id="limpiar-btn"
+          class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-3 rounded-lg"
+        >
+          Limpiar
+        </button>
+      </div>
+      <div id="buscar-resultado" class="mt-4"></div>
     </div>
 
+    <!-- Subir -->
     <div id="tab-subir" class="tab-panel hidden">
-      <h2>Subir Documento</h2>
-      <form id="subir-form">
-        <input type="text" id="nombre-doc" placeholder="Nombre del documento" required>
-        <input type="file" id="archivo-doc" accept="application/pdf" required>
-        <button type="submit">Subir</button>
+      <h2 class="text-xl font-semibold mb-3 text-blue-700">Subir Documento</h2>
+      <form id="subir-form" class="space-y-4">
+        <input
+          type="text"
+          id="nombre-doc"
+          placeholder="Nombre del documento"
+          class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+        />
+        <input
+          type="file"
+          id="archivo-doc"
+          accept="application/pdf"
+          class="w-full"
+          required
+        />
+        <button
+          type="submit"
+          class="w-full bg-green-600 text-white py-3 rounded hover:bg-green-700 font-semibold"
+        >
+          Subir
+        </button>
       </form>
-      <div id="subir-mensaje"></div>
+      <div id="subir-mensaje" class="mt-2"></div>
     </div>
 
+    <!-- Consultar -->
     <div id="tab-consultar" class="tab-panel hidden">
-      <h2>Consultar Documentos</h2>
-      <input type="text" id="consultar-busqueda" placeholder="Filtrar por nombre...">
-      <div id="consultar-lista"></div>
-      <div class="acciones">
-        <button id="descargar-csv">Descargar CSV</button>
-        <button id="descargar-pdfs">Descargar PDFs</button>
+      <h2 class="text-xl font-semibold mb-3 text-blue-700">Consultar Documentos</h2>
+      <input
+        type="text"
+        id="consultar-busqueda"
+        placeholder="Filtrar por nombre..."
+        class="w-full mb-3 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+      <div id="consultar-lista" class="overflow-x-auto"></div>
+      <div class="flex gap-4 mt-4">
+        <button
+          id="descargar-csv"
+          class="bg-yellow-600 text-white py-2 px-4 rounded hover:bg-yellow-700"
+        >
+          Descargar CSV
+        </button>
+        <button
+          id="descargar-pdfs"
+          class="bg-gray-800 text-white py-2 px-4 rounded hover:bg-gray-900"
+        >
+          Descargar PDFs
+        </button>
       </div>
     </div>
 
+    <!-- Búsqueda por Código -->
     <div id="tab-codigo" class="tab-panel hidden">
-      <h2>Búsqueda por Código</h2>
-      <form id="codigo-form">
-        <input type="text" id="codigo-input" placeholder="Escribe un código..." autocomplete="off" required>
-        <button type="submit">Buscar</button>
+      <h2 class="text-xl font-semibold mb-3 text-blue-700">Búsqueda por Código</h2>
+      <form id="codigo-form" class="flex gap-4 mb-4">
+        <input
+          type="text"
+          id="codigo-input"
+          placeholder="Escribe un código..."
+          autocomplete="off"
+          class="flex-1 px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+        />
+        <button
+          type="submit"
+          class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+        >
+          Buscar
+        </button>
       </form>
-      <ul id="codigo-sugerencias"></ul>
+      <ul
+        id="codigo-sugerencias"
+        class="bg-white border rounded max-h-36 overflow-y-auto"
+      ></ul>
       <div id="codigo-resultado"></div>
     </div>
   </div>
