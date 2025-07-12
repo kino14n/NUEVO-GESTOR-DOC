@@ -1,6 +1,8 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from sqlalchemy import text  # <-- AGREGADO
+
 import os
 
 # Importa configuraciones y componentes
@@ -32,7 +34,7 @@ app.register_blueprint(codes_bp, url_prefix='/api/codes')
 @app.route('/test-db')
 def test_db():
     try:
-        db.session.execute("SELECT 1")
+        db.session.execute(text("SELECT 1"))  # <-- FIX
         return "✅ Conexión exitosa con MySQL (Clever Cloud)"
     except Exception as e:
         return f"❌ Error de conexión: {str(e)}"
