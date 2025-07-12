@@ -76,7 +76,9 @@ document.getElementById('limpiar-btn').addEventListener('click', () => {
 document.getElementById('subir-form').addEventListener('submit', function(e) {
   e.preventDefault();
   const nombre = document.getElementById('nombre-doc').value.trim();
+  const fecha = document.getElementById('fecha-doc').value;
   const archivo = document.getElementById('archivo-doc').files[0];
+  const codigos = document.getElementById('codigos-doc').value.trim();
   const mensajeDiv = document.getElementById('subir-mensaje');
 
   if (!archivo) {
@@ -86,7 +88,9 @@ document.getElementById('subir-form').addEventListener('submit', function(e) {
 
   const formData = new FormData();
   formData.append('nombre', nombre);
+  formData.append('fecha', fecha);
   formData.append('archivo', archivo);
+  formData.append('codigos', codigos);
 
   mensajeDiv.textContent = "Subiendo...";
 
