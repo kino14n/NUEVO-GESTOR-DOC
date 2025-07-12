@@ -1,14 +1,15 @@
 import os
 
-# Lee la URL de la base de datos desde la variable de entorno
-# Usa una de respaldo solo si estás en local
-SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL') or 'mysql+pymysql://usuario:clave@host/dbname'
+class Config:
+    DB_NAME = os.getenv('DB_NAME', 'b4ntlli8yhth2jvjf7ih')
+    DB_USER = os.getenv('DB_USER', 'uymzq1mb64bx8ldn')
+    DB_PASSWORD = os.getenv('DB_PASSWORD', '3gYrCOKs8XCJY0DiLNhV')
+    DB_HOST = os.getenv('DB_HOST', 'us-east.connect.psdb.cloud')
+    DB_PORT = os.getenv('DB_PORT', '3306')
 
-# Clave secreta de Flask
-SECRET_KEY = os.getenv("SECRET_KEY", "esto-es-un-secreto")
+    SQLALCHEMY_DATABASE_URI = (
+        f'mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4'
+    )
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-# Carpeta donde se guardan los PDFs subidos
-UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "./uploads")
-
-# Extensiones de archivos válidas
-ALLOWED_EXTENSIONS = {'pdf'}
+    UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')

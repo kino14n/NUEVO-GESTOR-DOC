@@ -11,14 +11,18 @@ def create_app():
 
     db.init_app(app)
 
-    # Importa y registra tus blueprints aquí
     from routes.documentos import bp as documentos_bp
-    app.register_blueprint(documentos_bp)
+    from routes.codes import bp as codes_bp
+    from routes.exportar import bp as exportar_bp
+    from routes.usuarios import bp as usuarios_bp
 
-    # Crea la carpeta de uploads si no existe
+    app.register_blueprint(documentos_bp)
+    app.register_blueprint(codes_bp)
+    app.register_blueprint(exportar_bp)
+    app.register_blueprint(usuarios_bp)
+
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-    # Crea las tablas si no existen
     with app.app_context():
         db.create_all()
 
