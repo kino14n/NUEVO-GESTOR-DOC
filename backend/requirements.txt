@@ -5,3 +5,7 @@ PyMySQL
 Werkzeug
 python-dotenv
 Flask-CORS
+Flask
+Flask-SQLAlchemy
+pymysql
+cryptography
