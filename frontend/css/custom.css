@@ -1,1 +1,59 @@
+.modal-overlay {
+  position: fixed;
+  z-index: 9999;
+  inset: 0;
+  background: rgba(35, 56, 98, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-content {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 10px 36px 0 rgba(45,60,120,0.24);
+  padding: 2.5rem 2rem;
+  min-width: 320px;
+  max-width: 90vw;
+  text-align: center;
+}
+.modal-content h3 {
+  color: #2563eb;
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+}
+.modal-actions {
+  margin-top: 2rem;
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+}
+.modal-btn-ok {
+  background: #2563eb;
+  color: #fff;
+  padding: 0.5rem 2rem;
+  border: none;
+  border-radius: 9px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.modal-btn-ok:hover {
+  background: #1e40af;
+}
+.modal-btn-cancel {
+  background: #e5e7eb;
+  color: #334155;
+  padding: 0.5rem 2rem;
+  border: none;
+  border-radius: 9px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.modal-btn-cancel:hover {
+  background: #cbd5e1;
+}
+.hidden {
+  display: none !important;
+}
 /* Tus estilos personalizados aquí */
