@@ -1,3 +1,7 @@
 flask
 flask-cors
+flask_sqlalchemy
 gunicorn
+pandas
+python-dotenv
+pymysql

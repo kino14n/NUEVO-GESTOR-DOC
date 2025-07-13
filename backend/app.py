@@ -1,27 +1,27 @@
-from flask import Flask, jsonify, request
+from flask import Flask
 from flask_cors import CORS
+from config import Config
+from models import db
 
 app = Flask(__name__)
+app.config.from_object(Config)
 CORS(app, resources={r"/api/*": {"origins": "https://kino14n.github.io"}})
 
-@app.route('/api/search', methods=['POST'])
-def search():
-    data = request.get_json(silent=True)
-    return jsonify({
-        "ok": True,
-        "input": data,
-        "message": "Búsqueda recibida correctamente (ejemplo desde Flask backend)"
-    })
+db.init_app(app)
 
-@app.route('/api/docs', methods=['GET'])
-def docs():
-    return jsonify({
-        "docs": [
-            {"id": 1, "title": "Documento 1"},
-            {"id": 2, "title": "Documento 2"}
-        ],
-        "message": "Docs listos (ejemplo desde Flask backend)"
-    })
+from routes.documentos import documentos_bp
+from routes.codes import codes_bp
+from routes.exportar import exportar_bp
+from routes.usuarios import usuarios_bp
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+app.register_blueprint(documentos_bp)
+app.register_blueprint(codes_bp)
+app.register_blueprint(exportar_bp)
+app.register_blueprint(usuarios_bp)
+
+@app.route("/api/ping")
+def ping():
+    return {"pong": True, "msg": "Backend Flask activo y funcionando"}
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
