@@ -33,3 +33,5 @@ Thumbs.db
 *.swp
 *.swo
 uploads/
+.DS_Store
+?
