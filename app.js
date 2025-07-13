@@ -1,4 +1,4 @@
-// =================== Sistema de Pestañas ===================
+vz// =================== Sistema de Pestañas ===================
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -47,17 +47,17 @@ document.getElementById('buscar-btn').addEventListener('click', () => {
   fetch('https://nuevo-gestor-doc.onrender.com/api/search', {
     method: 'POST',
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code: input })
+    body: JSON.stringify({ query: input })
   })
     .then(res => res.json())
     .then(data => {
       resultadoDiv.innerHTML = '';
-      if (Object.keys(data).length === 0) {
+      if (!data.ok || !data.resultados || data.resultados.length === 0) {
         resultadoDiv.innerHTML = "<span>No se encontraron resultados.</span>";
       } else {
-        for (const [doc, info] of Object.entries(data)) {
-          resultadoDiv.innerHTML += `<div><b>${doc}</b>: ${JSON.stringify(info)}</div>`;
-        }
+        data.resultados.forEach(doc => {
+          resultadoDiv.innerHTML += `<div><b>${doc.name}</b> (${doc.date}): ${doc.codigos_extraidos}</div>`;
+        });
       }
     })
     .catch(err => {
@@ -86,11 +86,16 @@ document.getElementById('subir-form').addEventListener('submit', function(e) {
     return;
   }
 
+  if (!nombre) {
+    mensajeDiv.textContent = "Debes ingresar un nombre.";
+    return;
+  }
+
   const formData = new FormData();
-  formData.append('nombre', nombre);
-  formData.append('fecha', fecha);
-  formData.append('archivo', archivo);
-  formData.append('codigos', codigos);
+  formData.append('file', archivo);     // <--- Flask espera 'file'
+  formData.append('name', nombre);      // <--- Flask espera 'name'
+  formData.append('codigos', codigos);  // <--- Flask espera 'codigos'
+  // formData.append('fecha', fecha);   // Si tu backend lo requiere
 
   mensajeDiv.textContent = "Subiendo...";
 
@@ -100,7 +105,7 @@ document.getElementById('subir-form').addEventListener('submit', function(e) {
   })
     .then(res => res.json())
     .then(data => {
-      if (data.success) {
+      if (data.ok) {
         mensajeDiv.textContent = "¡Documento subido!";
         document.getElementById('subir-form').reset();
         showModal({
@@ -131,7 +136,7 @@ document.getElementById('subir-form').addEventListener('submit', function(e) {
 // =================== CONSULTAR ===================
 function renderDocs(docs) {
   const lista = document.getElementById('consultar-lista');
-  if (!docs.length) {
+  if (!docs || !docs.length) {
     lista.innerHTML = "<span>No hay documentos.</span>";
     return;
   }
@@ -140,11 +145,11 @@ function renderDocs(docs) {
     '<thead><tr class="border-b border-gray-300 bg-gray-50"><th class="p-2">Nombre</th><th class="p-2">Acciones</th></tr></thead><tbody>';
   docs.forEach(doc => {
     html += `<tr class="border-b border-gray-200 hover:bg-gray-100">
-      <td class="p-2">${doc.nombre}</td>
+      <td class="p-2">${doc.name}</td>
       <td class="p-2">
         <button class="mr-2 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700" onclick="eliminarDoc(${doc.id})">Eliminar</button>
-        <button class="mr-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700" onclick="editarDoc(${doc.id}, '${doc.nombre}')">Editar</button>
-        <a href="https://nuevo-gestor-doc.onrender.com/uploads/${doc.ruta}" target="_blank" class="text-blue-600 underline">Ver PDF</a>
+        <button class="mr-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700" onclick="editarDoc(${doc.id}, '${doc.name.replace(/'/g,"\\'")}')">Editar</button>
+        <a href="https://nuevo-gestor-doc.onrender.com/static/uploads/${doc.path}" target="_blank" class="text-blue-600 underline">Ver PDF</a>
       </td>
     </tr>`;
   });
@@ -155,7 +160,7 @@ function renderDocs(docs) {
 function consultarDocs(filtro = '') {
   fetch('https://nuevo-gestor-doc.onrender.com/api/docs' + (filtro ? '?search=' + encodeURIComponent(filtro) : ''))
     .then(res => res.json())
-    .then(renderDocs)
+    .then(data => renderDocs(data.docs || []))
     .catch(err => {
       document.getElementById('consultar-lista').innerHTML = 'Error al cargar documentos.';
       console.error(err);
@@ -178,10 +183,14 @@ window.eliminarDoc = function (id) {
     okText: 'Sí, eliminar',
     cancelText: 'Cancelar',
     onOk: () => {
-      fetch(`https://nuevo-gestor-doc.onrender.com/api/docs/${id}`, { method: 'DELETE' })
+      fetch('https://nuevo-gestor-doc.onrender.com/api/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      })
         .then(res => res.json())
         .then(data => {
-          if (data.success) {
+          if (data.ok) {
             consultarDocs();
             showModal({
               title: 'Eliminado',
@@ -191,7 +200,7 @@ window.eliminarDoc = function (id) {
           } else {
             showModal({
               title: 'Error',
-              message: data.error || 'Error al eliminar.',
+              message: data.msg || 'Error al eliminar.',
               hideCancel: true
             });
           }
@@ -212,14 +221,14 @@ window.eliminarDoc = function (id) {
 window.editarDoc = function (id, nombreActual) {
   const nuevoNombre = prompt('Nuevo nombre:', nombreActual);
   if (!nuevoNombre || nuevoNombre === nombreActual) return;
-  fetch(`https://nuevo-gestor-doc.onrender.com/api/docs/${id}`, {
-    method: 'PUT',
+  fetch('https://nuevo-gestor-doc.onrender.com/api/edit', {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ nombre: nuevoNombre })
+    body: JSON.stringify({ id, name: nuevoNombre })
   })
     .then(res => res.json())
     .then(data => {
-      if (data.success) {
+      if (data.ok) {
         consultarDocs();
         showModal({
           title: 'Editado',
@@ -229,7 +238,7 @@ window.editarDoc = function (id, nombreActual) {
       } else {
         showModal({
           title: 'Error',
-          message: data.error || 'Error al editar.',
+          message: data.msg || 'Error al editar.',
           hideCancel: true
         });
       }
@@ -246,10 +255,10 @@ window.editarDoc = function (id, nombreActual) {
 
 // ========== Descargar CSV y ZIP ==========
 document.getElementById('descargar-csv').addEventListener('click', function () {
-  window.open('https://nuevo-gestor-doc.onrender.com/api/download_csv');
+  window.open('https://nuevo-gestor-doc.onrender.com/api/export_csv');
 });
 document.getElementById('descargar-pdfs').addEventListener('click', function () {
-  window.open('https://nuevo-gestor-doc.onrender.com/api/download_zip');
+  window.open('https://nuevo-gestor-doc.onrender.com/api/export_zip');
 });
 
 // =================== BÚSQUEDA POR CÓDIGO ===================
@@ -259,20 +268,16 @@ document.getElementById('codigo-form').addEventListener('submit', function (e) {
   const resultado = document.getElementById('codigo-resultado');
   resultado.textContent = 'Buscando código: ' + codigo + ' ...';
 
-  fetch('https://nuevo-gestor-doc.onrender.com/api/search_code', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: codigo })
-  })
+  fetch('https://nuevo-gestor-doc.onrender.com/api/suggest?q=' + encodeURIComponent(codigo))
     .then(res => res.json())
     .then(data => {
       resultado.innerHTML = '';
-      if (Object.keys(data).length === 0) {
+      if (!data.ok || !data.codes || !data.codes.length) {
         resultado.innerHTML = '<span>No se encontró el código.</span>';
       } else {
-        for (const [doc, info] of Object.entries(data)) {
-          resultado.innerHTML += `<div><b>${doc}</b>: ${JSON.stringify(info)}</div>`;
-        }
+        data.codes.forEach(code => {
+          resultado.innerHTML += `<div><b>${code}</b></div>`;
+        });
       }
     })
     .catch(err => {
@@ -286,23 +291,26 @@ document.getElementById('codigo-input').addEventListener('input', function () {
   const sugerencias = document.getElementById('codigo-sugerencias');
   sugerencias.innerHTML = '';
   if (!val) return;
-  fetch('https://nuevo-gestor-doc.onrender.com/api/codes?starts_with=' + encodeURIComponent(val))
+  fetch('https://nuevo-gestor-doc.onrender.com/api/suggest?q=' + encodeURIComponent(val))
     .then(res => res.json())
     .then(data => {
       sugerencias.innerHTML = '';
-      data.forEach(codigo => {
-        const li = document.createElement('li');
-        li.textContent = codigo;
-        li.onclick = () => {
-          document.getElementById('codigo-input').value = codigo;
-          sugerencias.innerHTML = '';
-        };
-        sugerencias.appendChild(li);
-      });
+      if (data.ok && data.codes) {
+        data.codes.forEach(codigo => {
+          const li = document.createElement('li');
+          li.textContent = codigo;
+          li.onclick = () => {
+            document.getElementById('codigo-input').value = codigo;
+            sugerencias.innerHTML = '';
+          };
+          sugerencias.appendChild(li);
+        });
+      }s
     })
-    .catch(err => {
+    .catch(() => {
       sugerencias.innerHTML = '';
     });
 });
 
 console.log('Gestor documental JS conectado y funcional.');
+s
