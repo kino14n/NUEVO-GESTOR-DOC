@@ -12,6 +12,11 @@ from sqlalchemy.orm import sessionmaker
 DB_URL = "mysql+pymysql://uymzqlmb64bx81dn:3YrCOKs8XCJY0DilNhV@b4ntlli8yhth2jvjf7ih-mysql.services.clever-cloud.com:3306/b4ntlli8yhth2jvjf7ih"
 
 UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
+
+# Si existe un ARCHIVO llamado uploads, bórralo antes de crear la carpeta
+if os.path.exists(UPLOAD_FOLDER) and not os.path.isdir(UPLOAD_FOLDER):
+    os.remove(UPLOAD_FOLDER)
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
