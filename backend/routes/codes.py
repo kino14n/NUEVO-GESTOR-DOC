@@ -1,6 +1,7 @@
 
 from flask import Blueprint, request, jsonify
-from models import db, Code
+from models import db
+from models import Code
 
 bp = Blueprint('codes', __name__)
 
