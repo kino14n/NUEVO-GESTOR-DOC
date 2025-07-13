@@ -313,4 +313,3 @@ document.getElementById('codigo-input').addEventListener('input', function () {
 });
 
 console.log('Gestor documental JS conectado y funcional.');
-s
