@@ -1,37 +1,68 @@
-# === BACKEND (Python/Flask) ===
-backend/__pycache__/
-backend/*.pyc
-backend/*.pyo
-backend/*.pyd
-backend/*.db
-backend/*.sqlite3
-backend/.env
-backend/.env.*
-backend/instance/
-backend/*.log
+# =============================
+# IGNORAR ARCHIVOS Y CARPETAS COMUNES EN FLASK + FRONTEND
+# =============================
 
-# === FRONTEND ===
-frontend/node_modules/
-frontend/*.zip
-frontend/.DS_Store
-frontend/Thumbs.db
+# Node/npm
+node_modules/
+npm-debug.log*
 
-# === GLOBAL ===
+# Python
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
-__pycache__/
+.Python
+env/
+venv/
+ENV/
+.venv/
+build/
+develop-eggs/
+dist/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# VSCode/IDEA
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Mac/OSX
 .DS_Store
-Thumbs.db
+
+# Frontend (si usas build tools)
+*.map
+*.lock
 *.log
 
-# === VSCODE ===
-.vscode/
-.settings/
+# Git
+.git/
+.gitignore
 
-# === SISTEMAS ===
+# =============================
+# IGNORAR TODO EN uploads/ MENOS .gitkeep
+# =============================
+
+uploads/*
+!uploads/.gitkeep
+
+# =============================
+# IGNORAR CARPETAS TEMPORALES
+# =============================
+
+tmp/
+temp/
+*.bak
 *.swp
-*.swo
-uploads/
-.DS_Store
-?
+
+# =============================
+# ¡Puedes agregar reglas adicionales abajo si usas otras herramientas!
+# =============================
