@@ -1,7 +1,6 @@
-flask
-flask-cors
-flask_sqlalchemy
-gunicorn
-pandas
-python-dotenv
+Flask
+Flask-Cors
 pymysql
+sqlalchemy
+Werkzeug
+gunicorn
