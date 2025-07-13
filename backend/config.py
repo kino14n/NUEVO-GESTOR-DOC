@@ -8,7 +8,9 @@ class Config:
     DB_PORT = os.getenv('DB_PORT', '3306')
 
     SQLALCHEMY_DATABASE_URI = (
-        f'mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4'
+        f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        "?charset=utf8mb4"
+        "&ssl_ca=/etc/ssl/cert.pem"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
