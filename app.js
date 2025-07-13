@@ -1,4 +1,4 @@
-vz// =================== Sistema de Pestañas ===================
+// =================== Sistema de Pestañas ===================
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -305,7 +305,7 @@ document.getElementById('codigo-input').addEventListener('input', function () {
           };
           sugerencias.appendChild(li);
         });
-      }s
+      }
     })
     .catch(() => {
       sugerencias.innerHTML = '';
