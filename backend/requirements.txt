@@ -1,11 +1,2 @@
-gunicorn
-Flask
-Flask-SQLAlchemy
-PyMySQL
-Werkzeug
-python-dotenv
-Flask-CORS
-Flask
-Flask-SQLAlchemy
-pymysql
-cryptography
+flask
+flask-cors
