@@ -9,14 +9,23 @@ from werkzeug.utils import secure_filename
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-DB_URL = "mysql+pymysql://uymzqlmb64bx81dn:3YrCOKs8XCJY0DilNhV@b4ntlli8yhth2jvjf7ih-mysql.services.clever-cloud.com:3306/b4ntlli8yhth2jvjf7ih"
+# ---- Configuración de Base de Datos usando variables de entorno Clever Cloud ----
+DB_NAME = os.getenv('DB_NAME', 'b4ntlli8yhth2jvjf7ih')
+DB_USER = os.getenv('DB_USER', 'uymzq1mb64bx8ldn')
+DB_PASSWORD = os.getenv('DB_PASSWORD', '3gYrCOKs8XCJY0DilNhV')
+DB_HOST = os.getenv('DB_HOST', 'b4ntlli8yhth2jvjf7ih-mysql.services.clever-cloud.com')
+DB_PORT = os.getenv('DB_PORT', '3306')
+
+DB_URL = (
+    f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    "?charset=utf8mb4"
+)
 
 UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
 
-# Si existe un ARCHIVO llamado uploads, bórralo antes de crear la carpeta
+# Si existe un archivo llamado uploads, bórralo antes de crear la carpeta
 if os.path.exists(UPLOAD_FOLDER) and not os.path.isdir(UPLOAD_FOLDER):
     os.remove(UPLOAD_FOLDER)
-
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
@@ -26,6 +35,7 @@ CORS(app)
 engine = create_engine(DB_URL, pool_pre_ping=True)
 Session = sessionmaker(bind=engine)
 
+# ============= SUBIR DOCUMENTO =============
 @app.route('/api/upload', methods=['POST'])
 def upload():
     file = request.files.get('file')
@@ -60,13 +70,17 @@ def upload():
     finally:
         session.close()
 
+# ============= LISTAR DOCUMENTOS =============
 @app.route('/api/docs', methods=['GET'])
 def docs():
     session = Session()
     q = request.args.get('search', '').strip()
     try:
         if q:
-            rows = session.execute(text("SELECT * FROM documents WHERE name LIKE :q OR codigos_extraidos LIKE :q ORDER BY id DESC"), {'q': f"%{q}%"}).fetchall()
+            rows = session.execute(
+                text("SELECT * FROM documents WHERE name LIKE :q OR codigos_extraidos LIKE :q ORDER BY id DESC"),
+                {'q': f"%{q}%"}
+            ).fetchall()
         else:
             rows = session.execute(text("SELECT * FROM documents ORDER BY id DESC")).fetchall()
         docs = [dict(row) for row in rows]
@@ -76,6 +90,7 @@ def docs():
     finally:
         session.close()
 
+# ============= EDITAR DOCUMENTO =============
 @app.route('/api/edit', methods=['POST'])
 def edit():
     data = request.get_json()
@@ -104,6 +119,7 @@ def edit():
     finally:
         session.close()
 
+# ============= ELIMINAR DOCUMENTO =============
 @app.route('/api/delete', methods=['POST'])
 def delete():
     data = request.get_json()
@@ -126,13 +142,17 @@ def delete():
     finally:
         session.close()
 
+# ============= BÚSQUEDA INTELIGENTE =============
 @app.route('/api/search', methods=['POST'])
 def search():
     data = request.get_json()
     q = data.get('query', '').strip()
     session = Session()
     try:
-        rows = session.execute(text("SELECT * FROM documents WHERE name LIKE :q OR codigos_extraidos LIKE :q ORDER BY id DESC"), {'q': f"%{q}%"}).fetchall()
+        rows = session.execute(
+            text("SELECT * FROM documents WHERE name LIKE :q OR codigos_extraidos LIKE :q ORDER BY id DESC"),
+            {'q': f"%{q}%"}
+        ).fetchall()
         resultados = [dict(row) for row in rows]
         return jsonify({'ok': True, 'resultados': resultados})
     except Exception as e:
@@ -140,6 +160,7 @@ def search():
     finally:
         session.close()
 
+# ============= AUTOCOMPLETADO CÓDIGOS =============
 @app.route('/api/suggest')
 def suggest():
     q = request.args.get('q', '').strip()
@@ -147,7 +168,10 @@ def suggest():
     try:
         codes = []
         if q:
-            result = session.execute(text("SELECT code FROM codes WHERE code LIKE :q LIMIT 10"), {'q': f"{q}%"})
+            result = session.execute(
+                text("SELECT code FROM codes WHERE code LIKE :q LIMIT 10"),
+                {'q': f"{q}%"}
+            )
             codes = [row.code for row in result]
         return jsonify({'ok': True, 'codes': codes})
     except Exception as e:
@@ -155,6 +179,7 @@ def suggest():
     finally:
         session.close()
 
+# ============= EXPORTAR CSV =============
 @app.route('/api/export_csv')
 def export_csv():
     session = Session()
@@ -166,10 +191,16 @@ def export_csv():
         for row in rows:
             writer.writerow([row.id, row.name, row.date, row.path, row.codigos_extraidos])
         output.seek(0)
-        return send_file(io.BytesIO(output.getvalue().encode()), mimetype='text/csv', as_attachment=True, download_name='documentos.csv')
+        return send_file(
+            io.BytesIO(output.getvalue().encode()),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name='documentos.csv'
+        )
     finally:
         session.close()
 
+# ============= EXPORTAR ZIP DE PDFs =============
 @app.route('/api/export_zip', methods=['POST'])
 def export_zip():
     session = Session()
@@ -178,7 +209,10 @@ def export_zip():
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, 'w') as zf:
             if archivos:
-                docs = session.execute(text("SELECT path FROM documents WHERE path IN :archivos"), {'archivos': tuple(archivos)}).fetchall()
+                docs = session.execute(
+                    text("SELECT path FROM documents WHERE path IN :archivos"),
+                    {'archivos': tuple(archivos)}
+                ).fetchall()
             else:
                 docs = session.execute(text("SELECT path FROM documents")).fetchall()
             for doc in docs:
@@ -186,10 +220,16 @@ def export_zip():
                 if os.path.exists(path):
                     zf.write(path, doc.path)
         zip_buffer.seek(0)
-        return send_file(zip_buffer, mimetype='application/zip', as_attachment=True, download_name='documentos.zip')
+        return send_file(
+            zip_buffer,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name='documentos.zip'
+        )
     finally:
         session.close()
 
+# ============= SERVIR PDF INDIVIDUAL (para ver en frontend) =============
 @app.route('/static/uploads/<path:filename>')
 def serve_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
@@ -198,5 +238,6 @@ def serve_file(filename):
 def home():
     return "Backend corriendo OK!"
 
+# --- NO CAMBIES ESTE NOMBRE ---
 if __name__ == '__main__':
     app.run(debug=True)
