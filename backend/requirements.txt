@@ -2,6 +2,6 @@ Flask
 Flask-Cors
 pymysql
 sqlalchemy
-Werkzeug
+werkzeug
 gunicorn
 cryptography>=41.0.3

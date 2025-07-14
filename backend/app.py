@@ -10,11 +10,12 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 # ---- Configuración de Base de Datos usando variables de entorno Clever Cloud ----
-DB_NAME = os.getenv('DB_NAME', 'b4ntlli8yhth2jvjf7ih')
-DB_USER = os.getenv('DB_USER', 'uymzq1mb64bx8ldn')
-DB_PASSWORD = os.getenv('DB_PASSWORD', '3gYrCOKs8XCJY0DilNhV')
-DB_HOST = os.getenv('DB_HOST', 'b4ntlli8yhth2jvjf7ih-mysql.services.clever-cloud.com')
-DB_PORT = os.getenv('DB_PORT', '3306')
+DB_NAME = os.getenv('MYSQL_ADDON_DB')
+DB_USER = os.getenv('MYSQL_ADDON_USER')
+DB_PASSWORD = os.getenv('MYSQL_ADDON_PASSWORD')
+DB_HOST = os.getenv('MYSQL_ADDON_HOST')
+DB_PORT = os.getenv('MYSQL_ADDON_PORT', '3306')
+
 
 DB_URL = (
     f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
