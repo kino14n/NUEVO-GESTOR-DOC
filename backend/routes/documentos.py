@@ -3,10 +3,35 @@ from models import db, Document
 import os
 from datetime import datetime
 import boto3
-from botocore.exceptions import NoCredentialsError
+from botocore.exceptions import NoCredentialsError, ClientError # Importar ClientError
 from werkzeug.utils import secure_filename
 
 documentos_bp = Blueprint("documentos", __name__)
+
+# --- Función para obtener el cliente S3 (ahora reutilizable) ---
+def get_s3_client():
+    CELLAR_BUCKET = os.getenv('CELLAR_ADDON_BUCKET')
+    CELLAR_HOST = os.getenv('CELLAR_ADDON_HOST')
+    CELLAR_KEY_ID = os.getenv('CELLAR_ADDON_KEY_ID')
+    CELLAR_KEY_SECRET = os.getenv('CELLAR_ADDON_KEY_SECRET')
+
+    if not all([CELLAR_BUCKET, CELLAR_HOST, CELLAR_KEY_ID, CELLAR_KEY_SECRET]):
+        print("WARNING: Missing one or more Cellar S3 environment variables. S3 operations will not work.")
+        return None
+
+    try:
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=f'https://{CELLAR_HOST}',
+            aws_access_key_id=CELLAR_KEY_ID,
+            aws_secret_access_key=CELLAR_KEY_SECRET
+        )
+        # Opcional: una pequeña prueba para verificar la conexión, útil en desarrollo
+        # s3_client.list_buckets()
+        return s3_client
+    except Exception as e:
+        print(f"ERROR: Could not initialize S3 client (Cellar): {e}")
+        return None
 
 @documentos_bp.route("/api/docs", methods=["GET"])
 def listar_documentos():
@@ -22,79 +47,83 @@ def listar_documentos():
     ]
     return jsonify({"ok": True, "docs": result})
 
-@documentos_bp.route("/api/upload", methods=["POST"])
-def subir_documento():
-    # --- INICIALIZACIÓN DEL CLIENTE S3 DENTRO DE LA FUNCIÓN ---
-    CELLAR_BUCKET = os.getenv('CELLAR_ADDON_BUCKET')
-    CELLAR_HOST = os.getenv('CELLAR_ADDON_HOST')
-    CELLAR_KEY_ID = os.getenv('CELLAR_ADDON_KEY_ID')
-    CELLAR_KEY_SECRET = os.getenv('CELLAR_ADDON_KEY_SECRET')
 
-    s3_client = None
-    if all([CELLAR_BUCKET, CELLAR_HOST, CELLAR_KEY_ID, CELLAR_KEY_SECRET]):
-        try:
-            s3_client = boto3.client(
-                's3',
-                endpoint_url=f'https://{CELLAR_HOST}',
-                aws_access_key_id=CELLAR_KEY_ID,
-                aws_secret_access_key=CELLAR_KEY_SECRET
-            )
-            print("S3 client (Cellar) initialized successfully INSIDE UPLOAD function.")
-        except Exception as e:
-            print(f"ERROR: Could not initialize S3 client (Cellar) inside upload function: {e}")
-            s3_client = None
-    else:
-        print("WARNING: Missing one or more Cellar S3 environment variables INSIDE UPLOAD function. S3 operations will not work.")
-
+@documentos_bp.route("/api/presigned_url", methods=["POST"])
+def get_presigned_url():
+    s3_client = get_s3_client()
     if not s3_client:
-        print("Error: S3 client is not available for upload.")
         return jsonify({"ok": False, "error": "El servicio de almacenamiento (S3) no está configurado correctamente."}), 500
 
-    file = request.files.get("file")
-    name = request.form.get("name", "")
-    codigos = request.form.get("codigos", "")
+    data = request.json
+    file_name = data.get("file_name") # Nombre original del archivo del frontend
+    file_type = data.get("file_type") # Tipo MIME del archivo (ej: application/pdf)
 
-    if not file or not name or file.filename == '':
-        return jsonify({"ok": False, "error": "Nombre, archivo y un nombre de archivo válido son requeridos"}), 400
+    if not file_name or not file_type:
+        return jsonify({"ok": False, "error": "file_name y file_type son requeridos."}), 400
 
-    original_filename = secure_filename(file.filename)
-    filename_on_s3 = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{original_filename}"
+    # Generar un nombre de archivo único para S3 para evitar colisiones
+    # No usamos secure_filename aquí porque el frontend enviará el nombre original.
+    # Lo importante es el Key en S3.
+    filename_on_s3 = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{file_name}"
+    CELLAR_BUCKET = os.getenv('CELLAR_ADDON_BUCKET') # Necesario para la URL
+
+    if not CELLAR_BUCKET:
+        return jsonify({"ok": False, "error": "Nombre del bucket S3 no configurado."}), 500
 
     try:
-        file.seek(0) # MANTENER ESTA LÍNEA
-
-        file_content = file.read() # Lee el contenido completo del archivo en memoria
-        
-        content_length = len(file_content) # Obtener la longitud del contenido
-
-        # --- LÍNEAS DE DEPURACIÓN AÑADIDAS ---
-        print(f"DEBUG: Tipo de file_content: {type(file_content)}")
-        print(f"DEBUG: Longitud de file_content: {content_length} bytes")
-        print(f"DEBUG: Bucket: {CELLAR_BUCKET}, Key: {filename_on_s3}")
-        # --- FIN DE LÍNEAS DE DEPURACIÓN ---
-
-        s3_client.put_object(
+        # Generar la URL pre-firmada para la operación PUT Object
+        presigned_post = s3_client.generate_presigned_post(
             Bucket=CELLAR_BUCKET,
             Key=filename_on_s3,
-            Body=file_content,
-            ACL='public-read',
-            ContentLength=content_length
+            Fields={"Content-Type": file_type, "acl": "public-read"}, # Asegura el Content-Type
+            Conditions=[
+                {"Content-Type": file_type},
+                {"acl": "public-read"},
+                ["content-length-range", 1, 104857600] # Limite de 1 a 100MB (100 * 1024 * 1024)
+            ],
+            ExpiresIn=3600 # La URL será válida por 1 hora (en segundos)
         )
+        
+        # Guardamos el nombre temporal en S3 para asociarlo después con los metadatos de BD
+        # No guardar en BD aún, solo preparar.
+        return jsonify({"ok": True, "presigned_post": presigned_post, "s3_key": filename_on_s3})
 
-        doc = Document(name=name, path=filename_on_s3, codigos_extraidos=codigos)
+    except ClientError as e:
+        print(f"Error al generar URL pre-firmada: {e}")
+        return jsonify({"ok": False, "error": f"Error del cliente S3: {str(e)}"}), 500
+    except Exception as e:
+        print(f"Error inesperado al generar URL pre-firmada: {e}")
+        return jsonify({"ok": False, "error": f"Error inesperado: {str(e)}"}), 500
+
+
+@documentos_bp.route("/api/upload", methods=["POST"])
+def confirmar_subida_documento():
+    # Esta función ahora solo recibe la confirmación del frontend y guarda en BD.
+    # El archivo PDF ya fue subido directamente a S3 por el frontend.
+    data = request.json
+    s3_key = data.get("s3_key") # El nombre/ruta del archivo en S3
+    name = data.get("name", "")
+    codigos = data.get("codigos", "")
+
+    if not s3_key or not name:
+        return jsonify({"ok": False, "error": "s3_key y name son requeridos para confirmar la subida."}), 400
+
+    try:
+        # Guardar la información del documento en la base de datos
+        doc = Document(name=name, path=s3_key, codigos_extraidos=codigos)
         db.session.add(doc)
         db.session.commit()
 
-        return jsonify({"ok": True, "msg": "Documento subido a almacenamiento persistente"})
+        return jsonify({"ok": True, "msg": "Documento registrado en la base de datos."})
 
     except Exception as e:
         db.session.rollback()
-        print(f"Error al subir el archivo a S3 o guardar en BD: {e}")
-        return jsonify({"ok": False, "error": f"Error al subir el documento: {str(e)}"}), 500
+        print(f"Error al registrar documento en BD después de subida S3: {e}")
+        return jsonify({"ok": False, "error": f"Error al registrar el documento: {str(e)}"}), 500
+
 
 @documentos_bp.route("/static/uploads/<path:filename>")
 def download_pdf(filename):
-    # Obtener variables dentro de la función
     CELLAR_BUCKET = os.getenv('CELLAR_ADDON_BUCKET')
     CELLAR_HOST = os.getenv('CELLAR_ADDON_HOST')
     
@@ -107,23 +136,7 @@ def download_pdf(filename):
 
 @documentos_bp.route("/api/delete", methods=["POST"])
 def eliminar_documento():
-    # Inicialización del s3_client aquí
-    CELLAR_BUCKET = os.getenv('CELLAR_ADDON_BUCKET')
-    CELLAR_HOST = os.getenv('CELLAR_ADDON_HOST')
-    CELLAR_KEY_ID = os.getenv('CELLAR_ADDON_KEY_ID')
-    CELLAR_KEY_SECRET = os.getenv('CELLAR_ADDON_KEY_SECRET')
-
-    s3_client = None
-    if all([CELLAR_BUCKET, CELLAR_HOST, CELLAR_KEY_ID, CELLAR_KEY_SECRET]):
-        try:
-            s3_client = boto3.client(
-                's3', endpoint_url=f'https://{CELLAR_HOST}',
-                aws_access_key_id=CELLAR_KEY_ID, aws_secret_access_key=CELLAR_KEY_SECRET
-            )
-        except Exception as e:
-            print(f"ERROR: Could not initialize S3 client for delete: {e}")
-            s3_client = None
-
+    s3_client = get_s3_client()
     if not s3_client:
         return jsonify({"ok": False, "error": "El servicio de almacenamiento no está configurado."}), 500
 
@@ -134,7 +147,12 @@ def eliminar_documento():
         return jsonify({"ok": False, "msg": "Documento no encontrado"}), 404
 
     try:
+        CELLAR_BUCKET = os.getenv('CELLAR_ADDON_BUCKET') # Necesario para la operación
+        if not CELLAR_BUCKET:
+            return jsonify({"ok": False, "error": "Nombre del bucket S3 no configurado para eliminación."}), 500
+
         s3_client.delete_object(Bucket=CELLAR_BUCKET, Key=doc.path)
+        
         db.session.delete(doc)
         db.session.commit()
         return jsonify({"ok": True, "msg": "Documento eliminado"})
@@ -144,7 +162,6 @@ def eliminar_documento():
         print(f"Error al eliminar documento de S3 o BD: {e}")
         return jsonify({"ok": False, "error": f"Error al eliminar el documento: {str(e)}"}), 500
 
-
 @documentos_bp.route("/api/edit", methods=["POST"])
 def editar_documento():
     id_ = request.json.get("id")
@@ -153,10 +170,10 @@ def editar_documento():
     doc = Document.query.get(id_)
     if not doc:
         return jsonify({"ok": False, "msg": "Documento no encontrado"}), 404
-
+    
     if name is not None: doc.name = name
     if codigos is not None: doc.codigos_extraidos = codigos
-
+    
     try:
         db.session.commit()
         return jsonify({"ok": True, "msg": "Documento actualizado"})
@@ -168,7 +185,7 @@ def editar_documento():
 @documentos_bp.route("/api/search", methods=["POST"])
 def busqueda_inteligente():
     q = request.json.get("query", "").strip().lower()
-
+    
     if not q:
         return jsonify({"ok": True, "resultados": []})
 
@@ -177,7 +194,7 @@ def busqueda_inteligente():
         (Document.codigos_extraidos.ilike(f"%{q}%")) |
         (Document.path.ilike(f"%{q}%"))
     ).order_by(Document.date.desc()).all()
-
+    
     result = [
         {
             "id": doc.id,
@@ -187,6 +204,6 @@ def busqueda_inteligente():
             "codigos_extraidos": doc.codigos_extraidos,
         } for doc in docs
     ]
-
+    
     print(f"Búsqueda inteligente para '{q}' encontró {len(result)} resultados.")
     return jsonify({"ok": True, "resultados": result})
