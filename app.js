@@ -229,7 +229,7 @@ document.getElementById('descargar-pdfs').addEventListener('click', function () 
   });
 
   fetch(`${API_BASE_URL}/api/export_zip`, {
-      method: 'POST',
+      method: 'POST', 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ archivos: [] })
   })
@@ -240,14 +240,14 @@ document.getElementById('descargar-pdfs').addEventListener('click', function () 
   .then(blob => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-a.style.display = 'none';
-a.href = url;
-a.download = 'documentos.zip';
-document.body.appendChild(a);
-a.click();
-window.URL.revokeObjectURL(url);
-a.remove();
-document.getElementById('modal-overlay').classList.add('hidden');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = 'documentos.zip';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+      document.getElementById('modal-overlay').classList.add('hidden');
   })
   .catch(err => {
       console.error('Error al descargar el ZIP:', err);
