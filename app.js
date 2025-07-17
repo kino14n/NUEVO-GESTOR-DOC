@@ -1,5 +1,6 @@
 // =================== URL Base de la API ===================
-const API_BASE_URL = 'https://nuevo-gestor-doc.onrender.com';
+// !!! ATENCIÓN: CAMBIA ESTA URL POR LA DE TU BACKEND EN CLEVER CLOUD !!!
+const API_BASE_URL = 'https://TU-APP-ID.cleverapps.io';
 
 // =================== Sistema de Pestañas ===================
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -13,7 +14,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
 window.addEventListener('DOMContentLoaded', () => {
   document.querySelector('.tab-btn[data-tab="buscar"]').click();
-  console.log("Frontend listo. Sistema de pestañas OK.");
 });
 
 // =================== MODAL AZUL REUTILIZABLE ===================
@@ -59,12 +59,13 @@ document.getElementById('buscar-btn').addEventListener('click', () => {
         resultadoDiv.innerHTML = "<span>No se encontraron resultados.</span>";
       } else {
         data.resultados.forEach(doc => {
-          resultadoDiv.innerHTML += `<div><b>${doc.name}</b> (${doc.date}): ${doc.codigos_extraidos}</div>`;
+          const pdfUrl = `${API_BASE_URL}/static/uploads/${doc.path}`;
+          resultadoDiv.innerHTML += `<div><b>${doc.name}</b> (${doc.date}): ${doc.codigos_extraidos} <a href="${pdfUrl}" target="_blank" class="text-blue-500 hover:underline">[Ver PDF]</a></div>`;
         });
       }
     })
     .catch(err => {
-      resultadoDiv.innerHTML = "<span style='color:red'>Error al buscar.</span>";
+      resultadoDiv.innerHTML = "<span style='color:red'>Error de conexión al buscar.</span>";
       console.error(err);
     });
 });
@@ -79,18 +80,12 @@ document.getElementById('limpiar-btn').addEventListener('click', () => {
 document.getElementById('subir-form').addEventListener('submit', function(e) {
   e.preventDefault();
   const nombre = document.getElementById('nombre-doc').value.trim();
-  const fecha = document.getElementById('fecha-doc').value;
   const archivo = document.getElementById('archivo-doc').files[0];
   const codigos = document.getElementById('codigos-doc').value.trim();
   const mensajeDiv = document.getElementById('subir-mensaje');
 
-  if (!archivo) {
-    mensajeDiv.textContent = "Selecciona un archivo PDF.";
-    return;
-  }
-
-  if (!nombre) {
-    mensajeDiv.textContent = "Debes ingresar un nombre.";
+  if (!archivo || !nombre) {
+    mensajeDiv.textContent = "Nombre y archivo son obligatorios.";
     return;
   }
 
@@ -110,27 +105,15 @@ document.getElementById('subir-form').addEventListener('submit', function(e) {
       if (data.ok) {
         mensajeDiv.textContent = "¡Documento subido!";
         document.getElementById('subir-form').reset();
-        showModal({
-          title: '¡Subida exitosa!',
-          message: 'El documento se subió correctamente.',
-          hideCancel: true
-        });
+        showModal({ title: '¡Subida exitosa!', message: 'El documento se subió correctamente.', hideCancel: true });
       } else {
         mensajeDiv.textContent = data.error || "Error al subir.";
-        showModal({
-          title: 'Error',
-          message: data.error || "Error al subir.",
-          hideCancel: true
-        });
+        showModal({ title: 'Error', message: data.error || "Error al subir.", hideCancel: true });
       }
     })
     .catch(err => {
-      mensajeDiv.textContent = "Error al subir.";
-      showModal({
-        title: 'Error',
-        message: "Error al subir.",
-        hideCancel: true
-      });
+      mensajeDiv.textContent = "Error de conexión al subir.";
+      showModal({ title: 'Error', message: "Error de conexión.", hideCancel: true });
       console.error(err);
     });
 });
@@ -143,15 +126,15 @@ function renderDocs(docs) {
     return;
   }
   let html = '<table class="w-full text-left border-collapse">';
-  html +=
-    '<thead><tr class="border-b border-gray-300 bg-gray-50"><th class="p-2">Nombre</th><th class="p-2">Acciones</th></tr></thead><tbody>';
+  html += '<thead><tr class="border-b border-gray-300 bg-gray-50"><th class="p-2">Nombre</th><th class="p-2">Acciones</th></tr></thead><tbody>';
   docs.forEach(doc => {
+    const pdfUrl = `${API_BASE_URL}/static/uploads/${doc.path}`;
     html += `<tr class="border-b border-gray-200 hover:bg-gray-100">
       <td class="p-2">${doc.name}</td>
       <td class="p-2">
         <button class="mr-2 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700" onclick="eliminarDoc(${doc.id})">Eliminar</button>
         <button class="mr-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700" onclick="editarDoc(${doc.id}, '${doc.name.replace(/'/g,"\\'")}')">Editar</button>
-        <a href="${API_BASE_URL}/static/uploads/${doc.path}" target="_blank" class="text-blue-600 underline">Ver PDF</a>
+        <a href="${pdfUrl}" target="_blank" class="text-blue-600 underline">Ver PDF</a>
       </td>
     </tr>`;
   });
@@ -183,38 +166,25 @@ window.eliminarDoc = function (id) {
     title: 'Confirmar eliminación',
     message: '¿Estás seguro que deseas eliminar este documento?',
     okText: 'Sí, eliminar',
-    cancelText: 'Cancelar',
     onOk: () => {
       fetch(`${API_BASE_URL}/api/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id })
       })
-        .then(res => res.json())
-        .then(data => {
-          if (data.ok) {
-            consultarDocs();
-            showModal({
-              title: 'Eliminado',
-              message: 'El documento fue eliminado correctamente.',
-              hideCancel: true
-            });
-          } else {
-            showModal({
-              title: 'Error',
-              message: data.msg || 'Error al eliminar.',
-              hideCancel: true
-            });
-          }
-        })
-        .catch(err => {
-          showModal({
-            title: 'Error',
-            message: 'Error al eliminar.',
-            hideCancel: true
-          });
-          console.error(err);
-        });
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok) {
+          consultarDocs();
+          showModal({ title: 'Eliminado', message: 'El documento fue eliminado.', hideCancel: true });
+        } else {
+          showModal({ title: 'Error', message: data.msg || 'Error al eliminar.', hideCancel: true });
+        }
+      })
+      .catch(err => {
+        showModal({ title: 'Error', message: 'Error de conexión al eliminar.', hideCancel: true });
+        console.error(err);
+      });
     }
   });
 };
@@ -222,96 +192,59 @@ window.eliminarDoc = function (id) {
 // ========== Editar documento ==========
 window.editarDoc = function (id, nombreActual) {
   const nuevoNombre = prompt('Nuevo nombre:', nombreActual);
-  if (!nuevoNombre || nuevoNombre === nombreActual) return;
+  if (!nuevoNombre || nuevoNombre.trim() === '' || nuevoNombre === nombreActual) return;
+  
+  // Opcional: Pedir también los nuevos códigos
+  const nuevosCodigos = prompt('Nuevos códigos (separados por coma):', '');
+
   fetch(`${API_BASE_URL}/api/edit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, name: nuevoNombre })
+    body: JSON.stringify({ id: id, name: nuevoNombre, codigos: nuevosCodigos })
   })
-    .then(res => res.json())
-    .then(data => {
-      if (data.ok) {
-        consultarDocs();
-        showModal({
-          title: 'Editado',
-          message: 'El documento fue editado correctamente.',
-          hideCancel: true
-        });
-      } else {
-        showModal({
-          title: 'Error',
-          message: data.msg || 'Error al editar.',
-          hideCancel: true
-        });
-      }
-    })
-    .catch(err => {
-      showModal({
-        title: 'Error',
-        message: 'Error al editar.',
-        hideCancel: true
-      });
-      console.error(err);
-    });
+  .then(res => res.json())
+  .then(data => {
+    if (data.ok) {
+      consultarDocs();
+      showModal({ title: 'Editado', message: 'El documento fue actualizado.', hideCancel: true });
+    } else {
+      showModal({ title: 'Error', message: data.msg || 'Error al editar.', hideCancel: true });
+    }
+  })
+  .catch(err => {
+    showModal({ title: 'Error', message: 'Error de conexión al editar.', hideCancel: true });
+    console.error(err);
+  });
 };
 
-// ========== Descargar CSV y ZIP ==========
+// ========== Descargar CSV y ZIP (CORREGIDO) ==========
 document.getElementById('descargar-csv').addEventListener('click', function () {
   window.open(`${API_BASE_URL}/api/export_csv`);
 });
+
 document.getElementById('descargar-pdfs').addEventListener('click', function () {
-  window.open(`${API_BASE_URL}/api/export_zip`);
-});
+  showModal({
+    title: 'Descargando ZIP...',
+    message: 'Preparando el archivo ZIP con todos los documentos. Esto puede tardar un momento.',
+    hideCancel: true
+  });
 
-// =================== BÚSQUEDA POR CÓDIGO ===================
-document.getElementById('codigo-form').addEventListener('submit', function (e) {
-  e.preventDefault();
-  const codigo = document.getElementById('codigo-input').value.trim();
-  const resultado = document.getElementById('codigo-resultado');
-  resultado.textContent = 'Buscando código: ' + codigo + ' ...';
-
-  fetch(`${API_BASE_URL}/api/suggest?q=` + encodeURIComponent(codigo))
-    .then(res => res.json())
-    .then(data => {
-      resultado.innerHTML = '';
-      if (!data.ok || !data.codes || !data.codes.length) {
-        resultado.innerHTML = '<span>No se encontró el código.</span>';
-      } else {
-        data.codes.forEach(code => {
-          resultado.innerHTML += `<div><b>${code}</b></div>`;
-        });
-      }
-    })
-    .catch(err => {
-      resultado.innerHTML = "<span style='color:red'>Error en búsqueda por código.</span>";
-      console.error(err);
-    });
-});
-
-document.getElementById('codigo-input').addEventListener('input', function () {
-  const val = this.value.trim();
-  const sugerencias = document.getElementById('codigo-sugerencias');
-  sugerencias.innerHTML = '';
-  if (!val) return;
-  fetch(`${API_BASE_URL}/api/suggest?q=` + encodeURIComponent(val))
-    .then(res => res.json())
-    .then(data => {
-      sugerencias.innerHTML = '';
-      if (data.ok && data.codes) {
-        data.codes.forEach(codigo => {
-          const li = document.createElement('li');
-          li.textContent = codigo;
-          li.onclick = () => {
-            document.getElementById('codigo-input').value = codigo;
-            sugerencias.innerHTML = '';
-          };
-          sugerencias.appendChild(li);
-        });
-      }
-    })
-    .catch(() => {
-      sugerencias.innerHTML = '';
-    });
-});
-
-console.log('Gestor documental JS conectado y funcional.');
+  fetch(`${API_BASE_URL}/api/export_zip`, {
+      method: 'POST', // Usar POST como espera el backend
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archivos: [] }) // Array vacío para descargar todos los PDFs
+  })
+  .then(response => {
+      if (!response.ok) throw new Error('Respuesta del servidor no fue OK');
+      return response.blob();
+  })
+  .then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = 'documentos.zip';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a

@@ -4,3 +4,4 @@ Flask-SQLAlchemy
 PyMySQL
 gunicorn
 pandas
+boto3
