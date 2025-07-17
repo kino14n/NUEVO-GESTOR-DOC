@@ -194,7 +194,6 @@ window.editarDoc = function (id, nombreActual) {
   const nuevoNombre = prompt('Nuevo nombre:', nombreActual);
   if (!nuevoNombre || nuevoNombre.trim() === '' || nuevoNombre === nombreActual) return;
   
-  // Opcional: Pedir también los nuevos códigos
   const nuevosCodigos = prompt('Nuevos códigos (separados por coma):', '');
 
   fetch(`${API_BASE_URL}/api/edit`, {
@@ -230,9 +229,9 @@ document.getElementById('descargar-pdfs').addEventListener('click', function () 
   });
 
   fetch(`${API_BASE_URL}/api/export_zip`, {
-      method: 'POST', // Usar POST como espera el backend
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ archivos: [] }) // Array vacío para descargar todos los PDFs
+      body: JSON.stringify({ archivos: [] })
   })
   .then(response => {
       if (!response.ok) throw new Error('Respuesta del servidor no fue OK');
@@ -241,10 +240,80 @@ document.getElementById('descargar-pdfs').addEventListener('click', function () 
   .then(blob => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = 'documentos.zip';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      a
+a.style.display = 'none';
+a.href = url;
+a.download = 'documentos.zip';
+document.body.appendChild(a);
+a.click();
+window.URL.revokeObjectURL(url);
+a.remove();
+document.getElementById('modal-overlay').classList.add('hidden');
+  })
+  .catch(err => {
+      console.error('Error al descargar el ZIP:', err);
+      showModal({
+        title: 'Error de Descarga',
+        message: 'No se pudo generar el archivo ZIP. Inténtalo de nuevo.',
+        hideCancel: true
+      });
+  });
+});
+
+// =================== BÚSQUEDA POR CÓDIGO ===================
+document.getElementById('codigo-form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  const codigo = document.getElementById('codigo-input').value.trim();
+  const resultado = document.getElementById('codigo-resultado');
+  if (!codigo) return;
+  resultado.textContent = 'Buscando código: ' + codigo + ' ...';
+
+  fetch(`${API_BASE_URL}/api/suggest?q=` + encodeURIComponent(codigo))
+    .then(res => res.json())
+    .then(data => {
+      resultado.innerHTML = '';
+      if (!data.ok || !data.codes || !data.codes.length) {
+        resultado.innerHTML = '<span>No se encontró el código.</span>';
+      } else {
+        resultado.innerHTML = `<strong>Resultados para "${codigo}":</strong><ul>`;
+        data.codes.forEach(code => {
+          resultado.innerHTML += `<li>${code}</li>`;
+        });
+        resultado.innerHTML += '</ul>';
+      }
+    })
+    .catch(err => {
+      resultado.innerHTML = "<span style='color:red'>Error en búsqueda por código.</span>";
+      console.error(err);
+    });
+});
+
+document.getElementById('codigo-input').addEventListener('input', function () {
+  const val = this.value.trim();
+  const sugerencias = document.getElementById('codigo-sugerencias');
+  if (!val) {
+    sugerencias.innerHTML = '';
+    return;
+  }
+  
+  fetch(`${API_BASE_URL}/api/suggest?q=` + encodeURIComponent(val))
+    .then(res => res.json())
+    .then(data => {
+      sugerencias.innerHTML = '';
+      if (data.ok && data.codes) {
+        data.codes.forEach(codigo => {
+          const li = document.createElement('li');
+          li.className = 'p-2 cursor-pointer hover:bg-gray-100';
+          li.textContent = codigo;
+          li.onclick = () => {
+            document.getElementById('codigo-input').value = codigo;
+            sugerencias.innerHTML = '';
+            document.getElementById('codigo-form').dispatchEvent(new Event('submit'));
+          };
+          sugerencias.appendChild(li);
+        });
+      }
+    })
+    .catch(() => {
+      sugerencias.innerHTML = '';
+    });
+});
