@@ -65,14 +65,20 @@ def subir_documento():
 
         file_content = file.read() # Lee el contenido completo del archivo en memoria
         
-        content_length = len(file_content) # NUEVA LÍNEA: Obtener la longitud del contenido
+        content_length = len(file_content) # Obtener la longitud del contenido
+
+        # --- LÍNEAS DE DEPURACIÓN AÑADIDAS ---
+        print(f"DEBUG: Tipo de file_content: {type(file_content)}")
+        print(f"DEBUG: Longitud de file_content: {content_length} bytes")
+        print(f"DEBUG: Bucket: {CELLAR_BUCKET}, Key: {filename_on_s3}")
+        # --- FIN DE LÍNEAS DE DEPURACIÓN ---
 
         s3_client.put_object(
             Bucket=CELLAR_BUCKET,
             Key=filename_on_s3,
-            Body=file_content, # Pasamos el contenido leído directamente
+            Body=file_content,
             ACL='public-read',
-            ContentLength=content_length # NUEVO ARGUMENTO
+            ContentLength=content_length
         )
 
         doc = Document(name=name, path=filename_on_s3, codigos_extraidos=codigos)
@@ -167,12 +173,9 @@ def busqueda_inteligente():
         return jsonify({"ok": True, "resultados": []})
 
     docs = Document.query.filter(
-        (Document.name.ilike(f"%{q}%\
-")) |
-        (Document.codigos_extraidos.ilike(f"%{q}%\
-")) |
-        (Document.path.ilike(f"%{q}%\
-"))
+        (Document.name.ilike(f"%{q}%")) |
+        (Document.codigos_extraidos.ilike(f"%{q}%")) |
+        (Document.path.ilike(f"%{q}%"))
     ).order_by(Document.date.desc()).all()
 
     result = [
