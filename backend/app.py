@@ -17,7 +17,7 @@ def create_app():
 
     # --- Configuración de CORS más explícita para producción ---
     # Permite peticiones únicamente desde tu dominio de GitHub Pages.
-    CORS(app, resources={r"/api/*": {"origins": "https://kino14.github.io"}})
+    CORS(app, resources={r"/api/*": {"origins": "https://kino14n.github.io"}})
 
         # --- Cargar la configuración de la base de datos desde variables de entorno ---
 
