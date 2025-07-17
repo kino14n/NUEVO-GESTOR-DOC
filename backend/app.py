@@ -17,9 +17,8 @@ def create_app():
 
     # --- Configuración de CORS más explícita para producción ---
     # Permite peticiones únicamente desde tu dominio de GitHub Pages.
-  CORS(app, resources={r"/api/*": {"origins": "https://kino14n.github.io"}})
-        # --- Cargar la configuración de la base de datos desde variables de entorno ---
-
+    CORS(app, resources={r"/api/*": {"origins": "https://kino14n.github.io"}}) # <-- ¡Indentación corregida aquí!
+        
     # --- Cargar la configuración de la base de datos desde variables de entorno ---
     db_user = os.getenv('MYSQL_ADDON_USER')
     db_password = os.getenv('MYSQL_ADDON_PASSWORD')
