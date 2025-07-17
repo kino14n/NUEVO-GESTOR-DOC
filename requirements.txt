@@ -1,7 +1,0 @@
-Flask
-Flask-Cors
-pymysql
-sqlalchemy
-Werkzeug
-gunicorn
-cryptography>=41.0.3

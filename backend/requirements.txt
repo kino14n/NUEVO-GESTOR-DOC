@@ -1,8 +1,6 @@
 Flask
 Flask-Cors
-mysql-connector-python
-pymysql
-sqlalchemy
-werkzeug
+Flask-SQLAlchemy
+PyMySQL
 gunicorn
 cryptography>=41.0.3
