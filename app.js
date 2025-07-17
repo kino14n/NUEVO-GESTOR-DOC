@@ -1,3 +1,6 @@
+// =================== URL Base de la API ===================
+const API_BASE_URL = 'https://nuevo-gestor-doc.onrender.com';
+
 // =================== Sistema de Pestañas ===================
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -44,7 +47,7 @@ document.getElementById('buscar-btn').addEventListener('click', () => {
   const resultadoDiv = document.getElementById('buscar-resultado');
   resultadoDiv.textContent = "Buscando: " + input + " ...";
 
-  fetch('https://nuevo-gestor-doc.onrender.com/api/search', {
+  fetch(`${API_BASE_URL}/api/search`, {
     method: 'POST',
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query: input })
@@ -92,14 +95,13 @@ document.getElementById('subir-form').addEventListener('submit', function(e) {
   }
 
   const formData = new FormData();
-  formData.append('file', archivo);     // <--- Flask espera 'file'
-  formData.append('name', nombre);      // <--- Flask espera 'name'
-  formData.append('codigos', codigos);  // <--- Flask espera 'codigos'
-  // formData.append('fecha', fecha);   // Si tu backend lo requiere
+  formData.append('file', archivo);
+  formData.append('name', nombre);
+  formData.append('codigos', codigos);
 
   mensajeDiv.textContent = "Subiendo...";
 
-  fetch('https://nuevo-gestor-doc.onrender.com/api/upload', {
+  fetch(`${API_BASE_URL}/api/upload`, {
     method: 'POST',
     body: formData
   })
@@ -149,7 +151,7 @@ function renderDocs(docs) {
       <td class="p-2">
         <button class="mr-2 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700" onclick="eliminarDoc(${doc.id})">Eliminar</button>
         <button class="mr-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700" onclick="editarDoc(${doc.id}, '${doc.name.replace(/'/g,"\\'")}')">Editar</button>
-        <a href="https://nuevo-gestor-doc.onrender.com/static/uploads/${doc.path}" target="_blank" class="text-blue-600 underline">Ver PDF</a>
+        <a href="${API_BASE_URL}/static/uploads/${doc.path}" target="_blank" class="text-blue-600 underline">Ver PDF</a>
       </td>
     </tr>`;
   });
@@ -158,7 +160,7 @@ function renderDocs(docs) {
 }
 
 function consultarDocs(filtro = '') {
-  fetch('https://nuevo-gestor-doc.onrender.com/api/docs' + (filtro ? '?search=' + encodeURIComponent(filtro) : ''))
+  fetch(`${API_BASE_URL}/api/docs` + (filtro ? '?search=' + encodeURIComponent(filtro) : ''))
     .then(res => res.json())
     .then(data => renderDocs(data.docs || []))
     .catch(err => {
@@ -183,7 +185,7 @@ window.eliminarDoc = function (id) {
     okText: 'Sí, eliminar',
     cancelText: 'Cancelar',
     onOk: () => {
-      fetch('https://nuevo-gestor-doc.onrender.com/api/delete', {
+      fetch(`${API_BASE_URL}/api/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id })
@@ -221,7 +223,7 @@ window.eliminarDoc = function (id) {
 window.editarDoc = function (id, nombreActual) {
   const nuevoNombre = prompt('Nuevo nombre:', nombreActual);
   if (!nuevoNombre || nuevoNombre === nombreActual) return;
-  fetch('https://nuevo-gestor-doc.onrender.com/api/edit', {
+  fetch(`${API_BASE_URL}/api/edit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id, name: nuevoNombre })
@@ -255,10 +257,10 @@ window.editarDoc = function (id, nombreActual) {
 
 // ========== Descargar CSV y ZIP ==========
 document.getElementById('descargar-csv').addEventListener('click', function () {
-  window.open('https://nuevo-gestor-doc.onrender.com/api/export_csv');
+  window.open(`${API_BASE_URL}/api/export_csv`);
 });
 document.getElementById('descargar-pdfs').addEventListener('click', function () {
-  window.open('https://nuevo-gestor-doc.onrender.com/api/export_zip');
+  window.open(`${API_BASE_URL}/api/export_zip`);
 });
 
 // =================== BÚSQUEDA POR CÓDIGO ===================
@@ -268,7 +270,7 @@ document.getElementById('codigo-form').addEventListener('submit', function (e) {
   const resultado = document.getElementById('codigo-resultado');
   resultado.textContent = 'Buscando código: ' + codigo + ' ...';
 
-  fetch('https://nuevo-gestor-doc.onrender.com/api/suggest?q=' + encodeURIComponent(codigo))
+  fetch(`${API_BASE_URL}/api/suggest?q=` + encodeURIComponent(codigo))
     .then(res => res.json())
     .then(data => {
       resultado.innerHTML = '';
@@ -291,7 +293,7 @@ document.getElementById('codigo-input').addEventListener('input', function () {
   const sugerencias = document.getElementById('codigo-sugerencias');
   sugerencias.innerHTML = '';
   if (!val) return;
-  fetch('https://nuevo-gestor-doc.onrender.com/api/suggest?q=' + encodeURIComponent(val))
+  fetch(`${API_BASE_URL}/api/suggest?q=` + encodeURIComponent(val))
     .then(res => res.json())
     .then(data => {
       sugerencias.innerHTML = '';
