@@ -1,4 +1,3 @@
-# backend/routes/documentos.py (versión corregida con S3)
 from flask import Blueprint, request, jsonify, redirect
 from models import db, Document
 import os
@@ -8,7 +7,7 @@ from botocore.exceptions import NoCredentialsError
 
 documentos_bp = Blueprint("documentos", __name__)
 
-# --- Configuración de S3 (Cellar) ---
+# --- Configuración de S3 (Cellar) desde variables de entorno ---
 CELLAR_BUCKET = os.getenv('CELLAR_ADDON_BUCKET')
 CELLAR_HOST = os.getenv('CELLAR_ADDON_HOST')
 CELLAR_KEY_ID = os.getenv('CELLAR_ADDON_KEY_ID')
@@ -29,7 +28,7 @@ def listar_documentos():
             "id": doc.id,
             "name": doc.name,
             "date": doc.date.strftime("%Y-%m-%d"),
-            "path": doc.path, # El path ahora es el nombre del archivo en S3
+            "path": doc.path,
             "codigos_extraidos": doc.codigos_extraidos,
         } for doc in docs
     ]
@@ -47,31 +46,25 @@ def subir_documento():
     filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}"
 
     try:
-        # Subir archivo a S3
         s3_client.upload_fileobj(
             file,
             CELLAR_BUCKET,
             filename,
-            ExtraArgs={'ACL': 'public-read'} # Para que el archivo sea públicamente accesible
+            ExtraArgs={'ACL': 'public-read'}
         )
         
-        # Guardar en la base de datos
         doc = Document(name=name, path=filename, codigos_extraidos=codigos)
         db.session.add(doc)
         db.session.commit()
 
-        return jsonify({"ok": True, "msg": "Documento subido a Cellar S3"})
+        return jsonify({"ok": True, "msg": "Documento subido a almacenamiento persistente"})
 
-    except NoCredentialsError:
-        return jsonify({"ok": False, "error": "Credenciales de S3 no encontradas"}), 500
     except Exception as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": str(e)}), 500
 
-
 @documentos_bp.route("/static/uploads/<path:filename>")
 def download_pdf(filename):
-    # Redirige a la URL pública del archivo en S3
     file_url = f"https://{CELLAR_BUCKET}.{CELLAR_HOST}/{filename}"
     return redirect(file_url)
 
@@ -84,20 +77,15 @@ def eliminar_documento():
         return jsonify({"ok": False, "msg": "Documento no encontrado"}), 404
 
     try:
-        # Eliminar de S3
         s3_client.delete_object(Bucket=CELLAR_BUCKET, Key=doc.path)
-
-        # Eliminar de la base de datos
         db.session.delete(doc)
         db.session.commit()
-        return jsonify({"ok": True, "msg": "Documento eliminado de S3 y DB"})
+        return jsonify({"ok": True, "msg": "Documento eliminado"})
 
     except Exception as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": str(e)}), 500
 
-# Las demás rutas (edit, search) no necesitan cambios drásticos
-# Asegúrate de que la ruta de edición no intente modificar el archivo físico
 @documentos_bp.route("/api/edit", methods=["POST"])
 def editar_documento():
     id_ = request.json.get("id")

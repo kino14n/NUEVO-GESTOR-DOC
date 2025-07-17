@@ -1,58 +1,118 @@
+from flask import Blueprint, request, jsonify, redirect
+from models import db, Document
 import os
-from flask import Flask
-from flask_cors import CORS
-from models import db
+from datetime import datetime
+import boto3
+from botocore.exceptions import NoCredentialsError
 
-# --- Importar Blueprints (las rutas modulares que creaste) ---
-from routes.documentos import documentos_bp
-from routes.codes import codes_bp
-from routes.exportar import exportar_bp
-from routes.usuarios import usuarios_bp
+documentos_bp = Blueprint("documentos", __name__)
 
-def create_app():
-    """
-    Función de fábrica para crear y configurar la aplicación Flask.
-    """
-    app = Flask(__name__)
+# --- Configuración de S3 (Cellar) desde variables de entorno ---
+CELLAR_BUCKET = os.getenv('CELLAR_ADDON_BUCKET')
+CELLAR_HOST = os.getenv('CELLAR_ADDON_HOST')
+CELLAR_KEY_ID = os.getenv('CELLAR_ADDON_KEY_ID')
+CELLAR_KEY_SECRET = os.getenv('CELLAR_ADDON_KEY_SECRET')
 
-    # --- Configuración de CORS más explícita para producción ---
-    # Permite peticiones únicamente desde tu dominio de GitHub Pages.
-    CORS(app, resources={r"/api/*": {"origins": "https://kino14.github.io"}})
+s3_client = boto3.client(
+    's3',
+    endpoint_url=f'https://{CELLAR_HOST}',
+    aws_access_key_id=CELLAR_KEY_ID,
+    aws_secret_access_key=CELLAR_KEY_SECRET
+)
 
-    # --- Cargar la configuración de la base de datos ---
-    db_user = os.getenv('MYSQL_ADDON_USER')
-    db_password = os.getenv('MYSQL_ADDON_PASSWORD')
-    db_host = os.getenv('MYSQL_ADDON_HOST')
-    db_port = os.getenv('MYSQL_ADDON_PORT')
-    db_name = os.getenv('MYSQL_ADDON_DB')
+@documentos_bp.route("/api/docs", methods=["GET"])
+def listar_documentos():
+    docs = Document.query.order_by(Document.date.desc()).all()
+    result = [
+        {
+            "id": doc.id,
+            "name": doc.name,
+            "date": doc.date.strftime("%Y-%m-%d"),
+            "path": doc.path,
+            "codigos_extraidos": doc.codigos_extraidos,
+        } for doc in docs
+    ]
+    return jsonify({"ok": True, "docs": result})
 
-    if not all([db_user, db_password, db_host, db_port, db_name]):
-        raise ValueError("Faltan variables de entorno para la conexión a la base de datos.")
+@documentos_bp.route("/api/upload", methods=["POST"])
+def subir_documento():
+    file = request.files.get("file")
+    name = request.form.get("name", "")
+    codigos = request.form.get("codigos", "")
 
-    app.config['SQLALCHEMY_DATABASE_URI'] = (
-        f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?charset=utf8mb4"
-    )
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    if not file or not name:
+        return jsonify({"ok": False, "error": "Nombre y archivo son requeridos"}), 400
 
-    upload_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
-    app.config['UPLOAD_FOLDER'] = upload_folder
-    os.makedirs(upload_folder, exist_ok=True)
-    
-    db.init_app(app)
+    filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}"
 
-    app.register_blueprint(documentos_bp)
-    app.register_blueprint(codes_bp)
-    app.register_blueprint(exportar_bp)
-    app.register_blueprint(usuarios_bp)
+    try:
+        s3_client.upload_fileobj(
+            file,
+            CELLAR_BUCKET,
+            filename,
+            ExtraArgs={'ACL': 'public-read'}
+        )
+        
+        doc = Document(name=name, path=filename, codigos_extraidos=codigos)
+        db.session.add(doc)
+        db.session.commit()
 
-    @app.route('/')
-    def home():
-        return "Backend modular del Gestor Documental funcionando correctamente."
+        return jsonify({"ok": True, "msg": "Documento subido a almacenamiento persistente"})
 
-    return app
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
 
-# --- NO CAMBIES ESTO ---
-app = create_app()
+@documentos_bp.route("/static/uploads/<path:filename>")
+def download_pdf(filename):
+    file_url = f"https://{CELLAR_BUCKET}.{CELLAR_HOST}/{filename}"
+    return redirect(file_url)
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+@documentos_bp.route("/api/delete", methods=["POST"])
+def eliminar_documento():
+    doc_id = request.json.get("id")
+    doc = Document.query.get(doc_id)
+
+    if not doc:
+        return jsonify({"ok": False, "msg": "Documento no encontrado"}), 404
+
+    try:
+        s3_client.delete_object(Bucket=CELLAR_BUCKET, Key=doc.path)
+        db.session.delete(doc)
+        db.session.commit()
+        return jsonify({"ok": True, "msg": "Documento eliminado"})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@documentos_bp.route("/api/edit", methods=["POST"])
+def editar_documento():
+    id_ = request.json.get("id")
+    name = request.json.get("name")
+    codigos = request.json.get("codigos")
+    doc = Document.query.get(id_)
+    if not doc:
+        return jsonify({"ok": False, "msg": "Documento no encontrado"}), 404
+    if name: doc.name = name
+    if codigos: doc.codigos_extraidos = codigos
+    db.session.commit()
+    return jsonify({"ok": True, "msg": "Documento actualizado"})
+
+@documentos_bp.route("/api/search", methods=["POST"])
+def busqueda_inteligente():
+    q = request.json.get("query", "").lower()
+    docs = Document.query.filter(
+        (Document.name.ilike(f"%{q}%")) |
+        (Document.codigos_extraidos.ilike(f"%{q}%"))
+    ).order_by(Document.date.desc()).all()
+    result = [
+        {
+            "id": doc.id,
+            "name": doc.name,
+            "date": doc.date.strftime("%Y-%m-%d"),
+            "path": doc.path,
+            "codigos_extraidos": doc.codigos_extraidos,
+        } for doc in docs
+    ]
+    return jsonify({"ok": True, "resultados": result})
