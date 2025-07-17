@@ -1,6 +1,6 @@
 import os
 from flask import Flask
-from flask_cors import CORS #
+from flask_cors import CORS
 from models import db
 
 # --- Importar Blueprints (las rutas modulares que creaste) ---
@@ -19,7 +19,7 @@ def create_app():
     # Permite peticiones únicamente desde tu dominio de GitHub Pages.
     # Esta línea resuelve el error de CORS.
     # Asegúrate de que "https://kino14n.github.io" sea EXACTAMENTE el dominio de tu frontend.
-    CORS(app, resources={r"/api/*": {"origins": "https://kino14n.github.io"}}) #
+    CORS(app, resources={r"/api/*": {"origins": "https://kino14n.github.io"}})
         
     # --- Cargar la configuración de la base de datos desde variables de entorno ---
     db_user = os.getenv('MYSQL_ADDON_USER')
