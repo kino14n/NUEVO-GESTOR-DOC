@@ -77,7 +77,9 @@ document.getElementById('limpiar-btn').addEventListener('click', () => {
 });
 
 // =================== SUBIR ===================
-document.getElementById('subir-form').addEventListener('submit', function(e) {
+
+// =================== SUBIR (Flujo con URL Pre-firmada) ===================
+document.getElementById('subir-form').addEventListener('submit', async function(e) {
   e.preventDefault();
   const nombre = document.getElementById('nombre-doc').value.trim();
   const archivo = document.getElementById('archivo-doc').files[0];
@@ -89,34 +91,77 @@ document.getElementById('subir-form').addEventListener('submit', function(e) {
     return;
   }
 
-  const formData = new FormData();
-  formData.append('file', archivo);
-  formData.append('name', nombre);
-  formData.append('codigos', codigos);
-
-  mensajeDiv.textContent = "Subiendo...";
-
-  fetch(`${API_BASE_URL}/api/upload`, {
-    method: 'POST',
-    body: formData
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (data.ok) {
-        mensajeDiv.textContent = "¡Documento subido!";
-        document.getElementById('subir-form').reset();
-        showModal({ title: '¡Subida exitosa!', message: data.msg || 'El documento se subió correctamente.', hideCancel: true });
-      } else {
-        mensajeDiv.textContent = data.error || "Error al subir.";
-        showModal({ title: 'Error', message: data.error || "Error al subir.", hideCancel: true });
-      }
-    })
-    .catch(err => {
-      mensajeDiv.textContent = "Error de conexión al subir.";
-      showModal({ title: 'Error', message: "Error de conexión.", hideCancel: true });
-      console.error(err);
+  mensajeDiv.textContent = "Preparando subida...";
+  
+  try {
+    // 1. Obtener la URL pre-firmada del backend
+    const presignedRes = await fetch(`${API_BASE_URL}/api/presigned_url`, {
+      method: 'POST',
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        file_name: archivo.name, // Nombre original del archivo
+        file_type: archivo.type   // Tipo MIME del archivo (ej: application/pdf)
+      })
     });
+
+    if (!presignedRes.ok) {
+        const errorData = await presignedRes.json();
+        throw new Error(errorData.error || 'Error al obtener la URL pre-firmada.');
+    }
+    const presignedData = await presignedRes.json();
+    const { url, fields, s3_key } = presignedData.presigned_post; // URL y campos para la subida directa a S3
+    const filename_on_s3 = presignedData.s3_key; // El nombre del archivo que se usará en S3
+
+    // 2. Subir el archivo directamente a S3 usando la URL pre-firmada
+    mensajeDiv.textContent = "Subiendo archivo directamente a almacenamiento...";
+    const uploadFormData = new FormData();
+    // Añadir los campos de la firma primero
+    for (const key in fields) {
+        uploadFormData.append(key, fields[key]);
+    }
+    // Añadir el archivo como el último campo
+    uploadFormData.append('file', archivo); 
+
+    const uploadRes = await fetch(url, {
+        method: 'POST',
+        body: uploadFormData // ¡Importante: No establecer Content-Type aquí! fetch lo hará automáticamente para FormData.
+    });
+
+    if (!uploadRes.ok) {
+        // En caso de error de S3, a veces no es JSON. Intentar leer como texto.
+        const errorText = await uploadRes.text();
+        throw new Error(`Error al subir a S3: ${uploadRes.status} ${uploadRes.statusText} - ${errorText}`);
+    }
+
+    // 3. Confirmar la subida con el backend y guardar metadatos en BD
+    mensajeDiv.textContent = "Confirmando subida y guardando metadatos...";
+    const confirmRes = await fetch(`${API_BASE_URL}/api/upload`, { // <-- Ahora este endpoint espera JSON
+      method: 'POST',
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        s3_key: filename_on_s3, 
+        name: nombre, 
+        codigos: codigos 
+      })
+    });
+
+    const data = await confirmRes.json();
+    if (data.ok) {
+      mensajeDiv.textContent = "¡Documento subido y registrado!";
+      document.getElementById('subir-form').reset();
+      showModal({ title: '¡Subida exitosa!', message: data.msg || 'El documento se subió correctamente.', hideCancel: true });
+    } else {
+      mensajeDiv.textContent = data.error || "Error al registrar.";
+      showModal({ title: 'Error', message: data.error || "Error al registrar.", hideCancel: true });
+    }
+
+  } catch (err) {
+    mensajeDiv.textContent = "Error de conexión/subida.";
+    showModal({ title: 'Error', message: `Error al subir el documento: ${err.message}`, hideCancel: true });
+    console.error(err);
+  }
 });
+
 
 // =================== CONSULTAR ===================
 function renderDocs(docs) {
