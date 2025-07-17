@@ -65,7 +65,7 @@ document.getElementById('buscar-btn').addEventListener('click', () => {
       }
     })
     .catch(err => {
-      resultadoDiv.innerHTML = "<span style='color:red'>Error de conexión al buscar.</span>";
+      resultadoDiv.innerHTML = "<span style='color:red'>Error de conexión al buscar. Revisa la URL del API y la configuración de CORS.</span>";
       console.error(err);
     });
 });
@@ -244,10 +244,10 @@ document.getElementById('descargar-pdfs').addEventListener('click', function () 
       a.href = url;
       a.download = 'documentos.zip';
       document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      a.remove();
-      document.getElementById('modal-overlay').classList.add('hidden');
+a.click();
+window.URL.revokeObjectURL(url);
+a.remove();
+document.getElementById('modal-overlay').classList.add('hidden');
   })
   .catch(err => {
       console.error('Error al descargar el ZIP:', err);
