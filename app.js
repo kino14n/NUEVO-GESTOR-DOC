@@ -1,6 +1,6 @@
 // =================== URL Base de la API ===================
-// !!! ATENCIÓN: CAMBIA ESTA URL POR LA DE TU BACKEND EN CLEVER CLOUD !!!
-const API_BASE_URL = 'https://TU-APP-ID.cleverapps.io';
+// URL REAL de tu backend en Clever Cloud, construida con tu ID
+const API_BASE_URL = 'https://app-61c0049d-13c8-450d-a8d3-b902dcaa4b61.cleverapps.io';
 
 // =================== Sistema de Pestañas ===================
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -65,7 +65,7 @@ document.getElementById('buscar-btn').addEventListener('click', () => {
       }
     })
     .catch(err => {
-      resultadoDiv.innerHTML = "<span style='color:red'>Error de conexión al buscar. Revisa la URL del API y la configuración de CORS.</span>";
+      resultadoDiv.innerHTML = "<span style='color:red'>Error de conexión al buscar. Revisa la consola para más detalles.</span>";
       console.error(err);
     });
 });
@@ -244,10 +244,10 @@ document.getElementById('descargar-pdfs').addEventListener('click', function () 
       a.href = url;
       a.download = 'documentos.zip';
       document.body.appendChild(a);
-a.click();
-window.URL.revokeObjectURL(url);
-a.remove();
-document.getElementById('modal-overlay').classList.add('hidden');
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+      document.getElementById('modal-overlay').classList.add('hidden');
   })
   .catch(err => {
       console.error('Error al descargar el ZIP:', err);
