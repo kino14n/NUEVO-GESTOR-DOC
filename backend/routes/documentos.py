@@ -3,12 +3,12 @@ from models import db, Document
 import os
 from datetime import datetime
 import boto3
-from botocore.exceptions import NoCredentialsError # Asegúrate de que está importado
+from botocore.exceptions import NoCredentialsError
 from werkzeug.utils import secure_filename
 
 documentos_bp = Blueprint("documentos", __name__)
 
-# --- ELIMINA TODO ESTE BLOQUE DE INICIALIZACIÓN GLOBAL ---
+# --- ELIMINA TODO ESTE BLOQUE DE INICIALIZACIÓN GLOBAL (si todavía lo tienes) ---
 # CELLAR_BUCKET = os.getenv('CELLAR_ADDON_BUCKET')
 # CELLAR_HOST = os.getenv('CELLAR_ADDON_HOST')
 # CELLAR_KEY_ID = os.getenv('CELLAR_ADDON_KEY_ID')
@@ -33,7 +33,6 @@ documentos_bp = Blueprint("documentos", __name__)
 
 @documentos_bp.route("/api/docs", methods=["GET"])
 def listar_documentos():
-    # ... (esta función no necesita cambios) ...
     docs = Document.query.order_by(Document.date.desc()).all()
     result = [
         {
@@ -48,8 +47,7 @@ def listar_documentos():
 
 @documentos_bp.route("/api/upload", methods=["POST"])
 def subir_documento():
-    # --- MOVER LA INICIALIZACIÓN DEL CLIENTE S3 AQUÍ ---
-    # Obtener las variables de entorno dentro de la función para asegurar su frescura
+    # --- INICIALIZACIÓN DEL CLIENTE S3 DENTRO DE LA FUNCIÓN ---
     CELLAR_BUCKET = os.getenv('CELLAR_ADDON_BUCKET')
     CELLAR_HOST = os.getenv('CELLAR_ADDON_HOST')
     CELLAR_KEY_ID = os.getenv('CELLAR_ADDON_KEY_ID')
@@ -64,18 +62,13 @@ def subir_documento():
                 aws_access_key_id=CELLAR_KEY_ID,
                 aws_secret_access_key=CELLAR_KEY_SECRET
             )
-            # Puedes dejar este print para verificar en los logs si se inicializa aquí
             print("S3 client (Cellar) initialized successfully INSIDE UPLOAD function.")
         except Exception as e:
-            # Si hay un error al inicializar aquí, imprímelo y s3_client seguirá siendo None
             print(f"ERROR: Could not initialize S3 client (Cellar) inside upload function: {e}")
             s3_client = None
     else:
-        # Si faltan variables de entorno, también se registra aquí
         print("WARNING: Missing one or more Cellar S3 environment variables INSIDE UPLOAD function. S3 operations will not work.")
-    # --- FIN DE LA INICIALIZACIÓN MOVILIZADA ---
 
-    # Verifica si el cliente S3 se inicializó correctamente (este bloque se mantiene)
     if not s3_client:
         print("Error: S3 client is not available for upload.")
         return jsonify({"ok": False, "error": "El servicio de almacenamiento (S3) no está configurado correctamente."}), 500
@@ -91,13 +84,15 @@ def subir_documento():
     filename_on_s3 = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{original_filename}"
 
     try:
-        file.seek(0) # ¡MANTENER ESTA LÍNEA! Es crucial para el MissingContentLength inicial.
+        file.seek(0) # MANTENER ESTA LÍNEA
 
-        s3_client.upload_fileobj(
-            file,
-            CELLAR_BUCKET, # Esta variable ahora se obtiene dentro de la función
-            filename_on_s3,
-            ExtraArgs={'ACL': 'public-read'}
+        file_content = file.read() # Lee el contenido completo del archivo en memoria
+
+        s3_client.put_object(
+            Bucket=CELLAR_BUCKET,
+            Key=filename_on_s3,
+            Body=file_content, # Pasamos el contenido leído directamente
+            ACL='public-read'
         )
 
         doc = Document(name=name, path=filename_on_s3, codigos_extraidos=codigos)
@@ -113,10 +108,10 @@ def subir_documento():
 
 @documentos_bp.route("/static/uploads/<path:filename>")
 def download_pdf(filename):
-    # También necesitará la variable CELLAR_BUCKET y CELLAR_HOST aquí
+    # Obtener variables dentro de la función
     CELLAR_BUCKET = os.getenv('CELLAR_ADDON_BUCKET')
     CELLAR_HOST = os.getenv('CELLAR_ADDON_HOST')
-    # No es estrictamente necesario el s3_client para el redirect, pero sí las variables
+    
     if not CELLAR_BUCKET or not CELLAR_HOST:
         return "El servicio de almacenamiento no está configurado para descargas.", 500
 
@@ -126,7 +121,7 @@ def download_pdf(filename):
 
 @documentos_bp.route("/api/delete", methods=["POST"])
 def eliminar_documento():
-    # También necesitará la inicialización del s3_client aquí
+    # Inicialización del s3_client aquí
     CELLAR_BUCKET = os.getenv('CELLAR_ADDON_BUCKET')
     CELLAR_HOST = os.getenv('CELLAR_ADDON_HOST')
     CELLAR_KEY_ID = os.getenv('CELLAR_ADDON_KEY_ID')
@@ -166,7 +161,6 @@ def eliminar_documento():
 
 @documentos_bp.route("/api/edit", methods=["POST"])
 def editar_documento():
-    # ... (esta función no necesita cambios, ya que no interactúa con S3) ...
     id_ = request.json.get("id")
     name = request.json.get("name")
     codigos = request.json.get("codigos")
@@ -187,7 +181,6 @@ def editar_documento():
 
 @documentos_bp.route("/api/search", methods=["POST"])
 def busqueda_inteligente():
-    # ... (esta función no necesita cambios, ya que no interactúa con S3) ...
     q = request.json.get("query", "").strip().lower()
 
     if not q:
