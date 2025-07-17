@@ -8,29 +8,6 @@ from werkzeug.utils import secure_filename
 
 documentos_bp = Blueprint("documentos", __name__)
 
-# --- ELIMINA TODO ESTE BLOQUE DE INICIALIZACIÓN GLOBAL (si todavía lo tienes) ---
-# CELLAR_BUCKET = os.getenv('CELLAR_ADDON_BUCKET')
-# CELLAR_HOST = os.getenv('CELLAR_ADDON_HOST')
-# CELLAR_KEY_ID = os.getenv('CELLAR_ADDON_KEY_ID')
-# CELLAR_KEY_SECRET = os.getenv('CELLAR_ADDON_KEY_SECRET')
-
-# s3_client = None
-# if all([CELLAR_BUCKET, CELLAR_HOST, CELLAR_KEY_ID, CELLAR_KEY_SECRET]):
-#     try:
-#         s3_client = boto3.client(
-#             's3',
-#             endpoint_url=f'https://{CELLAR_HOST}',
-#             aws_access_key_id=CELLAR_KEY_ID,
-#             aws_secret_access_key=CELLAR_KEY_SECRET
-#         )
-#         print("S3 client (Cellar) initialized successfully.")
-#     except Exception as e:
-#         print(f"ERROR: Could not initialize S3 client (Cellar): {e}")
-#         s3_client = None
-# else:
-#     print("WARNING: Missing one or more Cellar S3 environment variables. S3 operations will not work.")
-# --- FIN DEL BLOQUE A ELIMINAR ---
-
 @documentos_bp.route("/api/docs", methods=["GET"])
 def listar_documentos():
     docs = Document.query.order_by(Document.date.desc()).all()
@@ -87,12 +64,15 @@ def subir_documento():
         file.seek(0) # MANTENER ESTA LÍNEA
 
         file_content = file.read() # Lee el contenido completo del archivo en memoria
+        
+        content_length = len(file_content) # NUEVA LÍNEA: Obtener la longitud del contenido
 
         s3_client.put_object(
             Bucket=CELLAR_BUCKET,
             Key=filename_on_s3,
             Body=file_content, # Pasamos el contenido leído directamente
-            ACL='public-read'
+            ACL='public-read',
+            ContentLength=content_length # NUEVO ARGUMENTO
         )
 
         doc = Document(name=name, path=filename_on_s3, codigos_extraidos=codigos)
@@ -187,9 +167,12 @@ def busqueda_inteligente():
         return jsonify({"ok": True, "resultados": []})
 
     docs = Document.query.filter(
-        (Document.name.ilike(f"%{q}%")) |
-        (Document.codigos_extraidos.ilike(f"%{q}%")) |
-        (Document.path.ilike(f"%{q}%"))
+        (Document.name.ilike(f"%{q}%\
+")) |
+        (Document.codigos_extraidos.ilike(f"%{q}%\
+")) |
+        (Document.path.ilike(f"%{q}%\
+"))
     ).order_by(Document.date.desc()).all()
 
     result = [
