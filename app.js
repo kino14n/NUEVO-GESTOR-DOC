@@ -190,6 +190,7 @@ window.eliminarDoc = function (id) {
 };
 
 // ========== Editar documento ==========
+// ========== Editar documento ==========
 window.editarDoc = function (id, nombreActual) {
   const nuevoNombre = prompt('Nuevo nombre:', nombreActual);
   if (!nuevoNombre || nuevoNombre.trim() === '' || nuevoNombre === nombreActual) return;
