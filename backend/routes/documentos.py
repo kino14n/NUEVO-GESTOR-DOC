@@ -13,12 +13,16 @@ CELLAR_HOST = os.getenv('CELLAR_ADDON_HOST')
 CELLAR_KEY_ID = os.getenv('CELLAR_ADDON_KEY_ID')
 CELLAR_KEY_SECRET = os.getenv('CELLAR_ADDON_KEY_SECRET')
 
-s3_client = boto3.client(
-    's3',
-    endpoint_url=f'https://{CELLAR_HOST}',
-    aws_access_key_id=CELLAR_KEY_ID,
-    aws_secret_access_key=CELLAR_KEY_SECRET
-)
+# Valida que las credenciales de Cellar existan
+if all([CELLAR_BUCKET, CELLAR_HOST, CELLAR_KEY_ID, CELLAR_KEY_SECRET]):
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=f'https://{CELLAR_HOST}',
+        aws_access_key_id=CELLAR_KEY_ID,
+        aws_secret_access_key=CELLAR_KEY_SECRET
+    )
+else:
+    s3_client = None # No se podrá usar S3 si faltan credenciales
 
 @documentos_bp.route("/api/docs", methods=["GET"])
 def listar_documentos():
@@ -36,6 +40,9 @@ def listar_documentos():
 
 @documentos_bp.route("/api/upload", methods=["POST"])
 def subir_documento():
+    if not s3_client:
+        return jsonify({"ok": False, "error": "El servicio de almacenamiento (S3) no está configurado."}), 500
+
     file = request.files.get("file")
     name = request.form.get("name", "")
     codigos = request.form.get("codigos", "")
@@ -65,11 +72,17 @@ def subir_documento():
 
 @documentos_bp.route("/static/uploads/<path:filename>")
 def download_pdf(filename):
+    if not s3_client:
+        return "El servicio de almacenamiento no está configurado.", 500
+        
     file_url = f"https://{CELLAR_BUCKET}.{CELLAR_HOST}/{filename}"
     return redirect(file_url)
 
 @documentos_bp.route("/api/delete", methods=["POST"])
 def eliminar_documento():
+    if not s3_client:
+        return jsonify({"ok": False, "error": "El servicio de almacenamiento no está configurado."}), 500
+
     doc_id = request.json.get("id")
     doc = Document.query.get(doc_id)
 
@@ -94,8 +107,8 @@ def editar_documento():
     doc = Document.query.get(id_)
     if not doc:
         return jsonify({"ok": False, "msg": "Documento no encontrado"}), 404
-    if name: doc.name = name
-    if codigos: doc.codigos_extraidos = codigos
+    if name is not None: doc.name = name
+    if codigos is not None: doc.codigos_extraidos = codigos
     db.session.commit()
     return jsonify({"ok": True, "msg": "Documento actualizado"})
 

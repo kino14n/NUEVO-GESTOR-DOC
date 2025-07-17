@@ -65,7 +65,7 @@ document.getElementById('buscar-btn').addEventListener('click', () => {
       }
     })
     .catch(err => {
-      resultadoDiv.innerHTML = "<span style='color:red'>Error de conexión al buscar. Revisa la consola para más detalles.</span>";
+      resultadoDiv.innerHTML = "<span style='color:red'>Error de conexión al buscar. Revisa la URL del API y la configuración de CORS.</span>";
       console.error(err);
     });
 });
@@ -105,7 +105,7 @@ document.getElementById('subir-form').addEventListener('submit', function(e) {
       if (data.ok) {
         mensajeDiv.textContent = "¡Documento subido!";
         document.getElementById('subir-form').reset();
-        showModal({ title: '¡Subida exitosa!', message: 'El documento se subió correctamente.', hideCancel: true });
+        showModal({ title: '¡Subida exitosa!', message: data.msg || 'El documento se subió correctamente.', hideCancel: true });
       } else {
         mensajeDiv.textContent = data.error || "Error al subir.";
         showModal({ title: 'Error', message: data.error || "Error al subir.", hideCancel: true });
