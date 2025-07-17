@@ -6,3 +6,4 @@ gunicorn
 pandas
 boto3
 cryptography
+werkzeug # Asegúrate de que werkzeug esté aquí si no lo estaba, por secure_filename
