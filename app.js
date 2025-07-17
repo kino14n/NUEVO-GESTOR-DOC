@@ -76,9 +76,7 @@ document.getElementById('limpiar-btn').addEventListener('click', () => {
   document.getElementById('buscar-resultado').innerHTML = '';
 });
 
-// =================== SUBIR ===================
-
-// =================== SUBIR (Flujo con URL Pre-firmada) ===================
+// =================== SUBIR (Lógica actualizada para URLs Pre-firmadas) ===================
 document.getElementById('subir-form').addEventListener('submit', async function(e) {
   e.preventDefault();
   const nombre = document.getElementById('nombre-doc').value.trim();
@@ -88,81 +86,81 @@ document.getElementById('subir-form').addEventListener('submit', async function(
 
   if (!archivo || !nombre) {
     mensajeDiv.textContent = "Nombre y archivo son obligatorios.";
+    showModal({ title: 'Error', message: 'Nombre y archivo son obligatorios.', hideCancel: true });
     return;
   }
 
   mensajeDiv.textContent = "Preparando subida...";
-  
+  showModal({ title: 'Subiendo Documento', message: 'Generando URL segura para la subida...', hideCancel: true });
+
   try {
-    // 1. Obtener la URL pre-firmada del backend
-    const presignedRes = await fetch(`${API_BASE_URL}/api/presigned_url`, {
+    // 1. Solicitar una URL pre-firmada al backend
+    const presignedUrlRes = await fetch(`${API_BASE_URL}/api/presigned_url`, {
       method: 'POST',
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        file_name: archivo.name, // Nombre original del archivo
-        file_type: archivo.type   // Tipo MIME del archivo (ej: application/pdf)
+      body: JSON.stringify({
+        file_name: archivo.name,
+        file_type: archivo.type
       })
     });
+    const presignedUrlData = await presignedUrlRes.json();
 
-    if (!presignedRes.ok) {
-        const errorData = await presignedRes.json();
-        throw new Error(errorData.error || 'Error al obtener la URL pre-firmada.');
+    if (!presignedUrlData.ok) {
+      throw new Error(presignedUrlData.error || 'Error al obtener URL pre-firmada.');
     }
-    const presignedData = await presignedRes.json();
-    const { url, fields, s3_key } = presignedData.presigned_post; // URL y campos para la subida directa a S3
-    const filename_on_s3 = presignedData.s3_key; // El nombre del archivo que se usará en S3
 
-    // 2. Subir el archivo directamente a S3 usando la URL pre-firmada
-    mensajeDiv.textContent = "Subiendo archivo directamente a almacenamiento...";
-    const uploadFormData = new FormData();
-    // Añadir los campos de la firma primero
-    for (const key in fields) {
-        uploadFormData.append(key, fields[key]);
-    }
-    // Añadir el archivo como el último campo
-    uploadFormData.append('file', archivo); 
+    const presignedUrl = presignedUrlData.presigned_url; // La URL pre-firmada para PUT directo
+    const s3_key = presignedUrlData.s3_key; // La clave que usaremos para guardar en BD
 
-    const uploadRes = await fetch(url, {
-        method: 'POST',
-        body: uploadFormData // ¡Importante: No establecer Content-Type aquí! fetch lo hará automáticamente para FormData.
+    mensajeDiv.textContent = "Subiendo archivo directamente a S3...";
+    showModal({ title: 'Subiendo Documento', message: 'Archivo subiéndose directamente al almacenamiento...', hideCancel: true });
+
+    // 2. Subir el archivo directamente a S3 usando la URL pre-firmada (método PUT)
+    const s3UploadRes = await fetch(presignedUrl, {
+        method: 'PUT', // Usamos PUT
+        headers: {
+            'Content-Type': archivo.type // Es importante enviar el Content-Type correcto aquí
+        },
+        body: archivo, // Pasamos el objeto File directamente
     });
 
-    if (!uploadRes.ok) {
-        // En caso de error de S3, a veces no es JSON. Intentar leer como texto.
-        const errorText = await uploadRes.text();
-        throw new Error(`Error al subir a S3: ${uploadRes.status} ${uploadRes.statusText} - ${errorText}`);
+    if (!s3UploadRes.ok) {
+      const s3ErrorText = await s3UploadRes.text();
+      throw new Error(`Error al subir a S3: ${s3UploadRes.status} - ${s3ErrorText}`);
     }
 
-    // 3. Confirmar la subida con el backend y guardar metadatos en BD
-    mensajeDiv.textContent = "Confirmando subida y guardando metadatos...";
-    const confirmRes = await fetch(`${API_BASE_URL}/api/upload`, { // <-- Ahora este endpoint espera JSON
+    mensajeDiv.textContent = "Archivo subido a S3. Confirmando en base de datos...";
+    showModal({ title: 'Subida exitosa a S3', message: 'Confirmando registro en base de datos...', hideCancel: true });
+
+    // 3. Confirmar la subida con el backend y guardar metadatos en la BD
+    const confirmRes = await fetch(`${API_BASE_URL}/api/upload`, {
       method: 'POST',
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        s3_key: filename_on_s3, 
-        name: nombre, 
-        codigos: codigos 
+      body: JSON.stringify({
+        s3_key: s3_key, // La clave única del archivo en S3
+        name: nombre,
+        codigos: codigos
       })
     });
+    const confirmData = await confirmRes.json();
 
-    const data = await confirmRes.json();
-    if (data.ok) {
+    if (confirmData.ok) {
       mensajeDiv.textContent = "¡Documento subido y registrado!";
       document.getElementById('subir-form').reset();
-      showModal({ title: '¡Subida exitosa!', message: data.msg || 'El documento se subió correctamente.', hideCancel: true });
+      showModal({ title: '¡Subida completa!', message: confirmData.msg || 'El documento se subió y registró correctamente.', hideCancel: true });
+      consultarDocs(); // Refrescar la lista de documentos
     } else {
-      mensajeDiv.textContent = data.error || "Error al registrar.";
-      showModal({ title: 'Error', message: data.error || "Error al registrar.", hideCancel: true });
+      throw new Error(confirmData.error || 'Error al confirmar la subida en la BD.');
     }
 
   } catch (err) {
-    mensajeDiv.textContent = "Error de conexión/subida.";
-    showModal({ title: 'Error', message: `Error al subir el documento: ${err.message}`, hideCancel: true });
-    console.error(err);
+    mensajeDiv.textContent = `Error: ${err.message}`;
+    showModal({ title: 'Error de Subida', message: err.message, hideCancel: true });
+    console.error("Error completo en subida:", err);
   }
 });
 
-// =================== CONSULTAR ===================
+
 // =================== CONSULTAR ===================
 function renderDocs(docs) {
   const lista = document.getElementById('consultar-lista');
@@ -234,7 +232,6 @@ window.eliminarDoc = function (id) {
   });
 };
 
-// ========== Editar documento ==========
 // ========== Editar documento ==========
 window.editarDoc = function (id, nombreActual) {
   const nuevoNombre = prompt('Nuevo nombre:', nombreActual);

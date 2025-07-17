@@ -3,7 +3,7 @@ from models import db, Document
 import os
 from datetime import datetime
 import boto3
-from botocore.exceptions import NoCredentialsError, ClientError # Importar ClientError
+from botocore.exceptions import NoCredentialsError, ClientError
 from werkzeug.utils import secure_filename
 
 documentos_bp = Blueprint("documentos", __name__)
@@ -62,8 +62,6 @@ def get_presigned_url():
         return jsonify({"ok": False, "error": "file_name y file_type son requeridos."}), 400
 
     # Generar un nombre de archivo único para S3 para evitar colisiones
-    # No usamos secure_filename aquí porque el frontend enviará el nombre original.
-    # Lo importante es el Key en S3.
     filename_on_s3 = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{file_name}"
     CELLAR_BUCKET = os.getenv('CELLAR_ADDON_BUCKET') # Necesario para la URL
 
@@ -72,21 +70,19 @@ def get_presigned_url():
 
     try:
         # Generar la URL pre-firmada para la operación PUT Object
-        presigned_post = s3_client.generate_presigned_post(
-            Bucket=CELLAR_BUCKET,
-            Key=filename_on_s3,
-            Fields={"Content-Type": file_type, "acl": "public-read"}, # Asegura el Content-Type
-            Conditions=[
-                {"Content-Type": file_type},
-                {"acl": "public-read"},
-                ["content-length-range", 1, 104857600] # Limite de 1 a 100MB (100 * 1024 * 1024)
-            ],
+        # Aquí generamos una URL de PUT, que es más simple para el frontend.
+        presigned_url = s3_client.generate_presigned_url(
+            'put_object',
+            Params={
+                'Bucket': CELLAR_BUCKET,
+                'Key': filename_on_s3,
+                'ContentType': file_type, # Asegura el Content-Type para la subida
+                'ACL': 'public-read'
+            },
             ExpiresIn=3600 # La URL será válida por 1 hora (en segundos)
         )
         
-        # Guardamos el nombre temporal en S3 para asociarlo después con los metadatos de BD
-        # No guardar en BD aún, solo preparar.
-        return jsonify({"ok": True, "presigned_post": presigned_post, "s3_key": filename_on_s3})
+        return jsonify({"ok": True, "presigned_url": presigned_url, "s3_key": filename_on_s3})
 
     except ClientError as e:
         print(f"Error al generar URL pre-firmada: {e}")
