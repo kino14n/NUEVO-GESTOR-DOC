@@ -162,7 +162,7 @@ document.getElementById('subir-form').addEventListener('submit', async function(
   }
 });
 
-
+// =================== CONSULTAR ===================
 // =================== CONSULTAR ===================
 function renderDocs(docs) {
   const lista = document.getElementById('consultar-lista');
